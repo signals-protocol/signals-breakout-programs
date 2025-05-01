@@ -8,6 +8,9 @@ skip-lint = false
 [programs.localnet]
 signals_breakout_contracts = "9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe"
 
+[programs.devnet]
+signals_breakout_contracts = "9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe"
+
 [registry]
 url = "https://api.apr.dev"
 
@@ -17,6 +20,10 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+account-fetch = "node scripts/fetch-accounts.js"
+init-market = "node scripts/init-market.js"
+buy-tokens = "node scripts/buy-tokens.js"
+close-market = "node scripts/close-market.js"
 
 [workspace]
 name = "signals-breakout-contracts"
