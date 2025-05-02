@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::errors::RangeBetError;
+use brine_fp::{self, UnsignedNumeric};
 
 /// Range-Bet Math 라이브러리
 pub struct RangeBetMath;
@@ -19,39 +20,95 @@ impl RangeBetMath {
             return Ok(x); // 첫 구매
         }
 
-        // 고정소수점 대신 double 정밀도 계산으로 구현
-        // TODO: brine-fp나 정밀한 고정소수점 라이브러리로 교체 필요
-        let x_f64 = x as f64;
-        let q_f64 = q as f64;
-        let t_f64 = t as f64;
+        // brine-fp 고정소수점 계산 구현
+        let x_fp = UnsignedNumeric::new(x as u128).unwrap();
+        let q_fp = UnsignedNumeric::new(q as u128).unwrap();
+        let t_fp = UnsignedNumeric::new(t as u128).unwrap();
         
         // 계산: x + (q-T)*ln((T+x)/T)
-        let mut cost = x_f64;
+        let mut cost = x_fp.clone();
         
         if q != t {
             // (T+x)/T 계산
-            let ratio = (t_f64 + x_f64) / t_f64;
+            let ratio = match t_fp.checked_add(&x_fp) {
+                Some(sum) => match sum.checked_div(&t_fp) {
+                    Some(r) => r,
+                    None => return Err(error!(RangeBetError::MathOverflow))
+                },
+                None => return Err(error!(RangeBetError::MathOverflow))
+            };
+            
             // ln((T+x)/T) 계산
-            let log_term = ratio.ln();
+            let log_term = match ratio.log() {
+                Some(l) => l,
+                None => return Err(error!(RangeBetError::MathOverflow))
+            };
             
             if q > t {
                 // q > T인 경우, cost = x + (q-T)*ln((T+x)/T)
-                let q_minus_t = q_f64 - t_f64;
-                cost = cost + (q_minus_t * log_term);
+                let q_minus_t = q_fp.signed().checked_sub(&t_fp.signed()).unwrap();
+                let additional_cost = match q_minus_t.checked_mul(&log_term) {
+                    Some(c) => c,
+                    None => return Err(error!(RangeBetError::MathOverflow))
+                };
+                
+                // 음수 검사
+                if !additional_cost.is_negative {
+                    // 양수일 경우 추가
+                    cost = match cost.checked_add(&additional_cost.value) {
+                        Some(c) => c,
+                        None => return Err(error!(RangeBetError::MathOverflow))
+                    };
+                } else {
+                    // 음수일 경우 차감
+                    let abs_additional_cost = additional_cost.negate().value;
+                    if abs_additional_cost.greater_than(&cost) {
+                        return Err(error!(RangeBetError::MathUnderflow));
+                    }
+                    cost = match cost.checked_sub(&abs_additional_cost) {
+                        Some(c) => c,
+                        None => return Err(error!(RangeBetError::MathUnderflow))
+                    };
+                }
             } else {
                 // q < T인 경우, cost = x - (T-q)*ln((T+x)/T)
-                let t_minus_q = t_f64 - q_f64;
-                // 언더플로우 검사
-                if (t_minus_q * log_term) > cost {
-                    return Err(error!(RangeBetError::MathUnderflow));
+                let t_minus_q = t_fp.signed().checked_sub(&q_fp.signed()).unwrap();
+                let reduction_cost = match t_minus_q.checked_mul(&log_term) {
+                    Some(c) => c,
+                    None => return Err(error!(RangeBetError::MathOverflow))
+                };
+                
+                // 음수 검사
+                if !reduction_cost.is_negative {
+                    // 양수일 경우 차감
+                    let unsigned_reduction = reduction_cost.value;
+                    if unsigned_reduction.greater_than(&cost) {
+                        return Err(error!(RangeBetError::MathUnderflow));
+                    }
+                    cost = match cost.checked_sub(&unsigned_reduction) {
+                        Some(c) => c,
+                        None => return Err(error!(RangeBetError::MathUnderflow))
+                    };
+                } else {
+                    // 음수일 경우 추가
+                    cost = match cost.checked_add(&reduction_cost.negate().value) {
+                        Some(c) => c,
+                        None => return Err(error!(RangeBetError::MathOverflow))
+                    };
                 }
-                cost = cost - (t_minus_q * log_term);
             }
         }
         
         // u64로 변환 (반올림)
-        let result = cost.round() as u64;
-        Ok(result)
+        match cost.to_imprecise() {
+            Some(precise_cost) => {
+                if precise_cost > u64::MAX as u128 {
+                    return Err(error!(RangeBetError::MathOverflow));
+                }
+                Ok(precise_cost as u64)
+            },
+            None => Err(error!(RangeBetError::MathOverflow))
+        }
     }
     
     /// 특정 비용으로 구매 가능한 토큰 수량 계산 (이진 탐색)
@@ -100,7 +157,9 @@ impl RangeBetMath {
                     if cost > left_cost && cost > right_cost {
                         return Ok(if right_cost > left_cost { right } else { left });
                     } else {
-                        return Ok(if cost - left_cost < right_cost - cost { left } else { right });
+                        let diff_left = (cost as i128) - (left_cost as i128);
+                        let diff_right = (right_cost as i128) - (cost as i128);
+                        return Ok(if diff_left < diff_right { left } else { right });
                     }
                 }
                 return Ok(mid);
@@ -141,39 +200,96 @@ impl RangeBetMath {
         require!(x <= t, RangeBetError::CannotSellMoreThanSupply);
         require!(x < t, RangeBetError::CannotSellEntireSupply);
 
-        // f64로 변환하여 계산
-        let x_f64 = x as f64;
-        let q_f64 = q as f64;
-        let t_f64 = t as f64;
+        // 고정소수점으로 변환하여 계산
+        let x_fp = UnsignedNumeric::new(x as u128).unwrap();
+        let q_fp = UnsignedNumeric::new(q as u128).unwrap();
+        let t_fp = UnsignedNumeric::new(t as u128).unwrap();
 
         // 계산: x + (q-T)*ln(T/(T-x))
-        let mut revenue = x_f64;
+        let mut revenue = x_fp.clone();
         
         if q != t {
             // T/(T-x) 계산
-            let ratio = t_f64 / (t_f64 - x_f64);
+            let t_minus_x = match t_fp.checked_sub(&x_fp) {
+                Some(diff) => diff,
+                None => return Err(error!(RangeBetError::MathUnderflow))
+            };
+            
+            let ratio = match t_fp.checked_div(&t_minus_x) {
+                Some(r) => r,
+                None => return Err(error!(RangeBetError::MathOverflow))
+            };
+            
             // ln(T/(T-x)) 계산
-            let log_term = ratio.ln();
+            let log_term = match ratio.log() {
+                Some(l) => l,
+                None => return Err(error!(RangeBetError::MathOverflow))
+            };
             
             if q > t {
                 // q > T인 경우, 추가 수익
-                let q_minus_t = q_f64 - t_f64;
-                revenue = revenue + (q_minus_t * log_term);
+                let q_minus_t = q_fp.signed().checked_sub(&t_fp.signed()).unwrap();
+                let additional_revenue = match q_minus_t.checked_mul(&log_term) {
+                    Some(r) => r,
+                    None => return Err(error!(RangeBetError::MathOverflow))
+                };
+                
+                // 음수 검사
+                if !additional_revenue.is_negative {
+                    // 양수일 경우 추가
+                    revenue = match revenue.checked_add(&additional_revenue.value) {
+                        Some(r) => r,
+                        None => return Err(error!(RangeBetError::MathOverflow))
+                    };
+                } else {
+                    // 음수일 경우 차감
+                    let abs_additional_revenue = additional_revenue.negate().value;
+                    if abs_additional_revenue.greater_than(&revenue) {
+                        return Err(error!(RangeBetError::SellCalculationUnderflow));
+                    }
+                    revenue = match revenue.checked_sub(&abs_additional_revenue) {
+                        Some(r) => r,
+                        None => return Err(error!(RangeBetError::SellCalculationUnderflow))
+                    };
+                }
             } else {
                 // q < T인 경우, 수익 감소
-                let t_minus_q = t_f64 - q_f64;
+                let t_minus_q = t_fp.signed().checked_sub(&q_fp.signed()).unwrap();
+                let reduction_revenue = match t_minus_q.checked_mul(&log_term) {
+                    Some(r) => r,
+                    None => return Err(error!(RangeBetError::MathOverflow))
+                };
                 
-                // 언더플로우 검사
-                if (t_minus_q * log_term) > revenue {
-                    return Err(error!(RangeBetError::SellCalculationUnderflow));
+                // 음수 검사
+                if !reduction_revenue.is_negative {
+                    // 양수일 경우 차감
+                    let unsigned_reduction = reduction_revenue.value;
+                    if unsigned_reduction.greater_than(&revenue) {
+                        return Err(error!(RangeBetError::SellCalculationUnderflow));
+                    }
+                    revenue = match revenue.checked_sub(&unsigned_reduction) {
+                        Some(r) => r,
+                        None => return Err(error!(RangeBetError::SellCalculationUnderflow))
+                    };
+                } else {
+                    // 음수일 경우 추가
+                    revenue = match revenue.checked_add(&reduction_revenue.negate().value) {
+                        Some(r) => r,
+                        None => return Err(error!(RangeBetError::MathOverflow))
+                    };
                 }
-                
-                revenue = revenue - (t_minus_q * log_term);
             }
         }
         
-        // u64로 변환 (반올림)
-        let result = revenue.round() as u64;
-        Ok(result)
+        // u64로 변환
+        match revenue.to_imprecise() {
+            Some(precise_revenue) => {
+                if precise_revenue > u64::MAX as u128 {
+                    return Err(error!(RangeBetError::MathOverflow));
+                }
+                Ok(precise_revenue as u64)
+            },
+            None => Err(error!(RangeBetError::MathOverflow))
+        }
     }
 } 

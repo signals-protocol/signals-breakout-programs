@@ -3,7 +3,7 @@ use anchor_spl::{
     token::{Mint, TokenAccount, Token},
     associated_token::AssociatedToken,
 };
-use crate::state::{ProgramState, Market, MarketCreated, Bin};
+use crate::state::{ProgramState, Market, MarketCreated};
 use crate::errors::RangeBetError;
 
 #[derive(Accounts)]

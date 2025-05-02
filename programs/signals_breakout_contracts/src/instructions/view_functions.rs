@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::{Market};
+use crate::state::Market; 
 use crate::errors::RangeBetError;
 use crate::math::RangeBetMath;
 

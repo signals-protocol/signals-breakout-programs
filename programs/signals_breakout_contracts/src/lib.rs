@@ -1,8 +1,5 @@
+#![allow(unexpected_cfgs)]
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    token::{Token, Mint},
-    associated_token::AssociatedToken,
-};
 
 declare_id!("9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe");
 
@@ -35,7 +32,7 @@ pub mod range_bet_program {
 
     pub fn buy_tokens(
         ctx: Context<BuyTokens>,
-        market_id: u64,
+        _market_id: u64,
         bin_indices: Vec<i64>,
         amounts: Vec<u64>,
         max_collateral: u64,
@@ -46,7 +43,7 @@ pub mod range_bet_program {
 
     pub fn close_market(
         ctx: Context<CloseMarket>,
-        market_id: u64,
+        _market_id: u64,
         winning_bin: i64,
     ) -> Result<()> {
         msg!("Close Market");
@@ -62,7 +59,7 @@ pub mod range_bet_program {
 
     pub fn activate_market(
         ctx: Context<ToggleMarketStatus>,
-        market_id: u64,
+        _market_id: u64,
         active: bool,
     ) -> Result<()> {
         msg!("Toggle Market Status");
@@ -79,17 +76,17 @@ pub mod range_bet_program {
 
     pub fn transfer_position(
         ctx: Context<TransferPosition>,
-        bin_index: i64,
-        amount: u64,
+        bin_indices: Vec<i64>,
+        amounts: Vec<u64>,
     ) -> Result<()> {
         msg!("Transfer Position");
-        instructions::transfer_position::transfer_position(ctx, bin_index, amount)
+        instructions::transfer_position::transfer_position(ctx, bin_indices, amounts)
     }
 
     // View 함수 (시뮬레이션용 인스트럭션)
     pub fn calculate_bin_cost(
         ctx: Context<CalculateBinCost>,
-        market_id: u64,
+        _market_id: u64,
         bin_index: i64,
         amount: u64,
     ) -> Result<u64> {
@@ -99,7 +96,7 @@ pub mod range_bet_program {
 
     pub fn calculate_x_for_bin(
         ctx: Context<CalculateXForBin>,
-        market_id: u64,
+        _market_id: u64,
         bin_index: i64,
         cost: u64,
     ) -> Result<u64> {
@@ -109,7 +106,7 @@ pub mod range_bet_program {
 
     pub fn calculate_bin_sell_cost(
         ctx: Context<CalculateBinSellCost>,
-        market_id: u64,
+        _market_id: u64,
         bin_index: i64,
         amount: u64,
     ) -> Result<u64> {

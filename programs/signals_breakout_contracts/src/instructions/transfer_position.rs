@@ -41,64 +41,64 @@ pub struct TransferPosition<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn transfer_position(
-    ctx: Context<TransferPosition>,
-    bin_index: i64,
-    amount: u64,
-) -> Result<()> {
-    let from_position = &mut ctx.accounts.from_position;
-    let to_position = &mut ctx.accounts.to_position;
-    let market = &ctx.accounts.market;
+pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<i64>, amounts: Vec<u64>) -> Result<()> {
+    // Bin 및 금액 배열 길이 확인
+    require!(bin_indices.len() == amounts.len(), RangeBetError::ArrayLengthMismatch);
     
-    // from_position에서 해당 bin 찾기
-    let mut from_bin_amount = 0;
-    let mut from_bin_index = None;
+    // 초기화가 필요한 경우
+    if ctx.accounts.to_position.owner == Pubkey::default() {
+        ctx.accounts.to_position.owner = ctx.accounts.to_user.key();
+        ctx.accounts.to_position.market_id = ctx.accounts.from_position.market_id;
+        ctx.accounts.to_position.bins = Vec::new();
+    }
     
-    for (i, bin_bal) in from_position.bins.iter().enumerate() {
-        if bin_bal.index == bin_index {
-            from_bin_amount = bin_bal.amount;
-            from_bin_index = Some(i);
-            break;
+    // 각 Bin에 대해 처리
+    for i in 0..bin_indices.len() {
+        let bin_index = bin_indices[i];
+        let amount = amounts[i];
+        
+        // 양이 0이면 건너뜀
+        if amount == 0 {
+            continue;
+        }
+        
+        // 송신자 포지션에서 해당 bin 찾기 및 금액 검증
+        let mut from_bin_found = false;
+        
+        for bin_bal in &mut ctx.accounts.from_position.bins {
+            if bin_bal.index == bin_index {
+                require!(bin_bal.amount >= amount, RangeBetError::InsufficientTokensToTransfer);
+                bin_bal.amount -= amount;
+                from_bin_found = true;
+                break;
+            }
+        }
+        
+        require!(from_bin_found, RangeBetError::BinIndexOutOfRange);
+        
+        // 수신자 포지션에 추가
+        let mut to_bin_found = false;
+        
+        for bin_bal in &mut ctx.accounts.to_position.bins {
+            if bin_bal.index == bin_index {
+                bin_bal.amount += amount;
+                to_bin_found = true;
+                break;
+            }
+        }
+        
+        // 수신자 Bin이 없으면 새로 생성
+        if !to_bin_found {
+            ctx.accounts.to_position.bins.push(BinBal {
+                index: bin_index,
+                amount,
+            });
         }
     }
     
-    // 양도할 충분한 양이 있는지 확인
-    require!(from_bin_amount >= amount, RangeBetError::InsufficientTokensToTransfer);
-    
-    // to_position 초기화 (필요한 경우)
-    if to_position.owner == Pubkey::default() {
-        to_position.owner = ctx.accounts.to_user.key();
-        to_position.market_id = from_position.market_id;
-        to_position.bins = Vec::new();
-    }
-    
-    // from_position에서 차감
-    if let Some(i) = from_bin_index {
-        from_position.bins[i].amount -= amount;
-    }
-    
-    // to_position에 추가
-    let mut to_bin_found = false;
-    
-    for bin_bal in &mut to_position.bins {
-        if bin_bal.index == bin_index {
-            bin_bal.amount += amount;
-            to_bin_found = true;
-            break;
-        }
-    }
-    
-    // 필요한 경우 새로운 bin 생성
-    if !to_bin_found {
-        to_position.bins.push(BinBal {
-            index: bin_index,
-            amount,
-        });
-    }
-    
-    msg!(
-        "포지션 전송 완료: Bin = {}, 금액 = {}, 보낸 이 = {}, 받는 이 = {}", 
-        bin_index, amount, ctx.accounts.from_user.key(), ctx.accounts.to_user.key()
+    msg!("포지션 양도 완료: {} -> {}", 
+        ctx.accounts.from_user.key(), 
+        ctx.accounts.to_user.key()
     );
     
     Ok(())
