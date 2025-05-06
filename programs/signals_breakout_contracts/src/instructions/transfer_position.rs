@@ -31,7 +31,7 @@ pub struct TransferPosition<'info> {
     #[account(
         init_if_needed,
         payer = from_user,
-        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 10, // 기본 10개 Bin에 대한 공간 예약
+        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // 기본 100개 Bin에 대한 공간 예약
         seeds = [b"pos", to_user.key().as_ref(), &from_position.market_id.to_le_bytes()],
         bump
     )]
@@ -41,7 +41,7 @@ pub struct TransferPosition<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<i64>, amounts: Vec<u64>) -> Result<()> {
+pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<u16>, amounts: Vec<u64>) -> Result<()> {
     // Bin 및 금액 배열 길이 확인
     require!(bin_indices.len() == amounts.len(), RangeBetError::ArrayLengthMismatch);
     
@@ -54,7 +54,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<i64>, 
     
     // 각 Bin에 대해 처리
     for i in 0..bin_indices.len() {
-        let bin_index = bin_indices[i];
+        let index = bin_indices[i];
         let amount = amounts[i];
         
         // 양이 0이면 건너뜀
@@ -66,7 +66,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<i64>, 
         let mut from_bin_found = false;
         
         for bin_bal in &mut ctx.accounts.from_position.bins {
-            if bin_bal.index == bin_index {
+            if bin_bal.index == index {
                 require!(bin_bal.amount >= amount, RangeBetError::InsufficientTokensToTransfer);
                 bin_bal.amount -= amount;
                 from_bin_found = true;
@@ -80,7 +80,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<i64>, 
         let mut to_bin_found = false;
         
         for bin_bal in &mut ctx.accounts.to_position.bins {
-            if bin_bal.index == bin_index {
+            if bin_bal.index == index {
                 bin_bal.amount += amount;
                 to_bin_found = true;
                 break;
@@ -90,7 +90,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<i64>, 
         // 수신자 Bin이 없으면 새로 생성
         if !to_bin_found {
             ctx.accounts.to_position.bins.push(BinBal {
-                index: bin_index,
+                index,
                 amount,
             });
         }

@@ -20,10 +20,7 @@ pub enum RangeBetError {
     #[msg("Min tick은 Max tick보다 작아야 합니다")]
     MinTickGreaterThanMax,
     
-    #[msg("Bin 인덱스는 tick spacing의 배수여야 합니다")]
-    BinIndexNotMultiple,
-    
-    #[msg("Bin 인덱스가 범위를 벗어났습니다")]
+    #[msg("Bin 인덱스가 유효한 범위를 벗어났습니다")]
     BinIndexOutOfRange,
     
     #[msg("배열 길이가 일치해야 합니다")]
@@ -35,11 +32,8 @@ pub enum RangeBetError {
     #[msg("비용이 최대 담보를 초과합니다")]
     CostExceedsMaxCollateral,
     
-    #[msg("승리 bin은 tick spacing의 배수여야 합니다")]
-    WinningBinNotMultiple,
-    
-    #[msg("승리 bin이 범위를 벗어났습니다")]
-    WinningBinOutOfRange,
+    #[msg("시장이 아직 닫히지 않았습니다")]
+    MarketIsNotClosed,
     
     #[msg("승리 bin이 아닙니다")]
     NotWinningBin,
@@ -73,4 +67,7 @@ pub enum RangeBetError {
     
     #[msg("소유자만 이 작업을 수행할 수 있습니다")]
     OwnerOnly,
+    
+    #[msg("올바른 순서로 마켓을 닫아야 합니다")]
+    IncorrectMarketOrderForClosing,
 } 

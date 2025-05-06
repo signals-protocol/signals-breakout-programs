@@ -25,8 +25,8 @@ pub fn initialize_program(ctx: Context<InitializeProgram>) -> Result<()> {
     program_state.owner = ctx.accounts.initializer.key();
     // 마켓 카운트 초기화
     program_state.market_count = 0;
-    // 마지막으로 닫힌 마켓 초기화 (-1 = 아직 없음)
-    program_state.last_closed_market = -1;
+    // 마지막으로 닫힌 마켓 초기화 (None = 아직 없음)
+    program_state.last_closed_market = None;
     
     msg!("프로그램 초기화 완료: 소유자 = {}", program_state.owner);
     

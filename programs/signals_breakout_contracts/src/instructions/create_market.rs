@@ -7,7 +7,7 @@ use crate::state::{ProgramState, Market, MarketCreated};
 use crate::errors::RangeBetError;
 
 #[derive(Accounts)]
-#[instruction(tick_spacing: u16, min_tick: i64, max_tick: i64, close_ts: i64)]
+#[instruction(tick_spacing: u32, min_tick: i64, max_tick: i64, close_ts: i64)]
 pub struct CreateMarket<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -58,7 +58,7 @@ pub struct CreateMarket<'info> {
 
 pub fn create_market(
     ctx: Context<CreateMarket>,
-    tick_spacing: u16,
+    tick_spacing: u32,
     min_tick: i64,
     max_tick: i64,
     close_ts: i64,
@@ -80,10 +80,13 @@ pub fn create_market(
     market.max_tick = max_tick;
     market.t_total = 0;
     market.collateral_balance = 0;
-    market.winning_bin = 0; // 아직 결정되지 않음
+    market.winning_bin = None; // 아직 결정되지 않음
     market.open_ts = Clock::get()?.unix_timestamp;
     market.close_ts = close_ts;
-    market.bins = Vec::new(); // 빈 bins 배열 초기화
+    
+    // 빈 배열 대신 bins 배열을 생성하고 0으로 초기화
+    let bin_count = ((max_tick - min_tick) / tick_spacing as i64 + 1) as usize;
+    market.bins = vec![0; bin_count];
     
     // 프로그램 상태 업데이트
     ctx.accounts.program_state.market_count += 1;

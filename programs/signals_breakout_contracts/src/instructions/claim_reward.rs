@@ -48,7 +48,12 @@ pub struct ClaimReward<'info> {
 pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
     let market = &mut ctx.accounts.market;
     let user_position = &mut ctx.accounts.user_position;
-    let winning_bin = market.winning_bin;
+
+    // 시장이 닫혔는지 확인
+    require!(market.closed, RangeBetError::MarketIsNotClosed);
+    
+    // 승리 Bin이 설정되었는지 확인
+    let winning_bin = market.winning_bin.ok_or(error!(RangeBetError::BinIndexOutOfRange))?;
     
     // 승리 Bin에 베팅한 토큰을 찾음
     let mut user_winning_amount = 0;
@@ -65,15 +70,8 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
     // 청구할 토큰이 있는지 확인
     require!(user_winning_amount > 0, RangeBetError::NoTokensToClaim);
     
-    // 시장에서 승리 Bin의 총 토큰 수량 찾기
-    let mut total_winning_tokens = 0;
-    
-    for bin in &market.bins {
-        if bin.index == winning_bin {
-            total_winning_tokens = bin.q;
-            break;
-        }
-    }
+    // 시장에서 승리 Bin의 총 토큰 수량 가져오기
+    let total_winning_tokens = market.bins[winning_bin as usize];
     
     // 보상 계산: (유저 토큰 수량 / 총 승리 토큰 수량) * 전체 담보 잔액
     let reward_amount = (user_winning_amount as u128 * market.collateral_balance as u128) 

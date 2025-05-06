@@ -24,12 +24,7 @@ pub struct ToggleMarketStatus<'info> {
     pub market: Account<'info, Market>,
 }
 
-pub fn toggle_market_status(ctx: Context<ToggleMarketStatus>, active: bool) -> Result<()> {
-    // Market의 Pubkey를 사용하여 market_id 추출
-    let market_pubkey = ctx.accounts.market.key();
-    let market_id_bytes = market_pubkey.to_bytes();
-    let market_id = u64::from_le_bytes(market_id_bytes[0..8].try_into().unwrap_or([0; 8]));
-    
+pub fn toggle_market_status(ctx: Context<ToggleMarketStatus>, market_id: u64, active: bool) -> Result<()> {
     // 마켓 활성/비활성화 상태 토글
     let market = &mut ctx.accounts.market;
     market.active = active;

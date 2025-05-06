@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, TokenAccount, Token, Transfer};
-use crate::state::{Market, UserMarketPosition, Bin, BinBal, TokensBought};
+use crate::state::{Market, UserMarketPosition, BinBal, TokensBought};
 use crate::errors::RangeBetError;
 use crate::math::RangeBetMath;
 
@@ -24,7 +24,7 @@ pub struct BuyTokens<'info> {
     #[account(
         init_if_needed,
         payer = user,
-        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 10, // 기본 10개 Bin에 대한 공간 예약
+        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // 기본 100개 Bin에 대한 공간 예약
         seeds = [b"pos", user.key().as_ref(), &market_id.to_le_bytes()],
         bump
     )]
@@ -48,7 +48,8 @@ pub struct BuyTokens<'info> {
 
 pub fn buy_tokens(
     ctx: Context<BuyTokens>,
-    bin_indices: Vec<i64>,
+    market_id: u64,
+    bin_indices: Vec<u16>,
     amounts: Vec<u64>,
     max_collateral: u64,
 ) -> Result<()> {
@@ -58,18 +59,12 @@ pub fn buy_tokens(
     
     let market = &mut ctx.accounts.market;
     let user_position = &mut ctx.accounts.user_position;
-    let tick_spacing = market.tick_spacing;
-    let min_tick = market.min_tick;
-    let max_tick = market.max_tick;
     
     // 초기화가 필요한 경우
     if user_position.owner == Pubkey::default() {
         user_position.owner = ctx.accounts.user.key();
-        // market_id는 이제 함수 매개변수로 전달됨
-        user_position.market_id = market.key().to_bytes()[0..8]
-            .try_into()
-            .map(u64::from_le_bytes)
-            .unwrap_or(0);
+        // market_id를 매개변수에서 직접 사용
+        user_position.market_id = market_id;
         user_position.bins = Vec::new();
     }
     
@@ -78,7 +73,7 @@ pub fn buy_tokens(
     
     // 각 Bin에 대해 처리
     for i in 0..bin_indices.len() {
-        let bin_index = bin_indices[i];
+        let index = bin_indices[i];
         let amount = amounts[i];
         
         // 양이 0이면 건너뜀
@@ -86,30 +81,14 @@ pub fn buy_tokens(
             continue;
         }
         
-        // Bin 유효성 검사
-        require!(bin_index % tick_spacing as i64 == 0, RangeBetError::BinIndexNotMultiple);
-        require!(bin_index >= min_tick && bin_index <= max_tick, RangeBetError::BinIndexOutOfRange);
+        // 배열 인덱스 범위 확인
+        require!(index < market.bins.len() as u16, RangeBetError::BinIndexOutOfRange);
         
-        // 마켓에서 해당 Bin 찾기 또는 생성
-        let mut bin_found = false;
-        let mut bin_q = 0;
+        // 마켓에서 해당 Bin의 양 가져오기
+        let bin_q = market.bins[index as usize];
         
-        for bin in &mut market.bins {
-            if bin.index == bin_index {
-                bin_q = bin.q;
-                bin.q += amount;
-                bin_found = true;
-                break;
-            }
-        }
-        
-        // Bin이 없으면 새로 생성
-        if !bin_found {
-            market.bins.push(Bin {
-                index: bin_index,
-                q: amount,
-            });
-        }
+        // 마켓 Bin 수량 업데이트
+        market.bins[index as usize] += amount;
         
         // 비용 계산
         let cost = RangeBetMath::calculate_cost(amount, bin_q, t_current)?;
@@ -119,7 +98,7 @@ pub fn buy_tokens(
         let mut user_bin_found = false;
         
         for bin_bal in &mut user_position.bins {
-            if bin_bal.index == bin_index {
+            if bin_bal.index == index {
                 bin_bal.amount += amount;
                 user_bin_found = true;
                 break;
@@ -129,7 +108,7 @@ pub fn buy_tokens(
         // 사용자 Bin이 없으면 새로 생성
         if !user_bin_found {
             user_position.bins.push(BinBal {
-                index: bin_index,
+                index,
                 amount,
             });
         }

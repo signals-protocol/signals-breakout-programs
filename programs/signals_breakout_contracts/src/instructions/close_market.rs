@@ -27,35 +27,37 @@ pub struct CloseMarket<'info> {
 
 pub fn close_market(
     ctx: Context<CloseMarket>, 
-    winning_bin: i64
+    market_id: u64,
+    winning_bin: u16
 ) -> Result<()> {
-    // 먼저 market key로부터 market_id 추출
-    let market_id = ctx.accounts.market.key().to_bytes()[0..8]
-        .try_into()
-        .map(|bytes: [u8; 8]| u64::from_le_bytes(bytes))
-        .map_err(|_| error!(RangeBetError::ArrayLengthMismatch))?;
-
-    // 그 후 market 및 program_state 가변 참조 획득
+    // 다음 닫을 마켓 ID 계산
+    let expected_next_id = match ctx.accounts.program_state.last_closed_market {
+        Some(last_id) => last_id + 1,
+        None => 0 // 아직 닫힌 마켓이 없으면 0번 마켓부터 시작
+    };
+    
+    // 전달된 ID가 다음 닫아야 할 마켓 ID와 일치하는지 검증
+    require!(
+        market_id == expected_next_id, 
+        RangeBetError::IncorrectMarketOrderForClosing
+    );
+    
+    // 가변 참조 획득
     let market = &mut ctx.accounts.market;
     let program_state = &mut ctx.accounts.program_state;
         
-    // 승리 Bin 유효성 검사
-    let tick_spacing = market.tick_spacing;
-    let min_tick = market.min_tick;
-    let max_tick = market.max_tick;
-    
-    require!(winning_bin % tick_spacing as i64 == 0, RangeBetError::WinningBinNotMultiple);
+    // winning_bin 인덱스가 bins 배열 범위 내에 있는지 확인
     require!(
-        winning_bin >= min_tick && winning_bin <= max_tick, 
-        RangeBetError::WinningBinOutOfRange
+        (winning_bin as usize) < market.bins.len(),
+        RangeBetError::BinIndexOutOfRange
     );
     
     // 마켓 상태 업데이트
     market.closed = true;
-    market.winning_bin = winning_bin;
+    market.winning_bin = Some(winning_bin);
     
-    // 프로그램 상태 업데이트
-    program_state.last_closed_market = market_id as i64;
+    // 프로그램 상태 업데이트 - 마지막으로 닫힌 마켓 ID 갱신
+    program_state.last_closed_market = Some(market_id);
     
     // 이벤트 발생
     emit!(MarketClosed {
@@ -63,7 +65,7 @@ pub fn close_market(
         winning_bin,
     });
     
-    msg!("마켓 마감 완료: ID = {}, 승리 Bin = {}", market_id, winning_bin);
+    msg!("마켓 마감 완료: ID = {}, 승리 Bin 인덱스 = {}", market_id, winning_bin);
     
     Ok(())
 } 

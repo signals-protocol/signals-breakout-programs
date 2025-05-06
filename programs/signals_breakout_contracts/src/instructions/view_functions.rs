@@ -40,29 +40,19 @@ pub struct CalculateBinSellCost<'info> {
 /// 특정 Bin에 토큰을 구매하는 비용을 계산하는 Instruction(view)
 pub fn calculate_bin_cost(
     ctx: Context<CalculateBinCost>,
-    bin_index: i64,
+    index: u16,
     amount: u64,
 ) -> Result<u64> {
     let market = &ctx.accounts.market;
     
-    // Bin 유효성 검사
+    // 배열 인덱스 범위 확인
     require!(
-        bin_index % market.tick_spacing as i64 == 0, 
-        RangeBetError::BinIndexNotMultiple
-    );
-    require!(
-        bin_index >= market.min_tick && bin_index <= market.max_tick, 
+        (index as usize) < market.bins.len(), 
         RangeBetError::BinIndexOutOfRange
     );
     
-    // 선택한 Bin의 현재 q 값 찾기
-    let mut bin_q = 0;
-    for bin in &market.bins {
-        if bin.index == bin_index {
-            bin_q = bin.q;
-            break;
-        }
-    }
+    // 선택한 Bin의 현재 q 값 가져오기
+    let bin_q = market.bins[index as usize];
     
     // 코스트 계산
     let cost = RangeBetMath::calculate_cost(amount, bin_q, market.t_total)?;
@@ -73,29 +63,19 @@ pub fn calculate_bin_cost(
 /// 특정 비용으로 구매 가능한 토큰 수량을 계산하는 Instruction(view)
 pub fn calculate_x_for_bin(
     ctx: Context<CalculateXForBin>,
-    bin_index: i64,
+    index: u16,
     cost: u64,
 ) -> Result<u64> {
     let market = &ctx.accounts.market;
     
-    // Bin 유효성 검사
+    // 배열 인덱스 범위 확인
     require!(
-        bin_index % market.tick_spacing as i64 == 0, 
-        RangeBetError::BinIndexNotMultiple
-    );
-    require!(
-        bin_index >= market.min_tick && bin_index <= market.max_tick, 
+        (index as usize) < market.bins.len(), 
         RangeBetError::BinIndexOutOfRange
     );
     
-    // 선택한 Bin의 현재 q 값 찾기
-    let mut bin_q = 0;
-    for bin in &market.bins {
-        if bin.index == bin_index {
-            bin_q = bin.q;
-            break;
-        }
-    }
+    // 선택한 Bin의 현재 q 값 가져오기
+    let bin_q = market.bins[index as usize];
     
     // 수량 계산
     let amount = RangeBetMath::calculate_x_for_cost(cost, bin_q, market.t_total)?;
@@ -106,29 +86,19 @@ pub fn calculate_x_for_bin(
 /// 특정 Bin에서 토큰을 판매했을 때 얻는 수익을 계산하는 Instruction(view)
 pub fn calculate_bin_sell_cost(
     ctx: Context<CalculateBinSellCost>,
-    bin_index: i64,
+    index: u16,
     amount: u64,
 ) -> Result<u64> {
     let market = &ctx.accounts.market;
     
-    // Bin 유효성 검사
+    // 배열 인덱스 범위 확인
     require!(
-        bin_index % market.tick_spacing as i64 == 0, 
-        RangeBetError::BinIndexNotMultiple
-    );
-    require!(
-        bin_index >= market.min_tick && bin_index <= market.max_tick, 
+        (index as usize) < market.bins.len(), 
         RangeBetError::BinIndexOutOfRange
     );
     
-    // 선택한 Bin의 현재 q 값 찾기
-    let mut bin_q = 0;
-    for bin in &market.bins {
-        if bin.index == bin_index {
-            bin_q = bin.q;
-            break;
-        }
-    }
+    // 선택한 Bin의 현재 q 값 가져오기
+    let bin_q = market.bins[index as usize];
     
     // 판매 수익 계산
     let sell_revenue = RangeBetMath::calculate_sell_cost(amount, bin_q, market.t_total)?;
