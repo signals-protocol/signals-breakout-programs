@@ -74,6 +74,8 @@ describe("Market Management", () => {
       )
       .accounts({
         user: env.user1.publicKey,
+        userTokenAccount: env.userTokenAccounts.user1,
+        vault: env.vault,
       })
       .signers([env.user1])
       .rpc();

@@ -184,7 +184,6 @@ describe("Token Operations", () => {
       await env.closeMarketsSequentially(env.marketId, 0);
 
       // 구매 시도
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
       try {
         await env.program.methods
           .buyTokens(

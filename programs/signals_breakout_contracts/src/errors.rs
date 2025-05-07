@@ -11,13 +11,13 @@ pub enum RangeBetError {
     #[msg("Tick spacing must be positive")]
     InvalidTickSpacing,
     
-    #[msg("Min tick은 tick spacing의 배수여야 합니다")]
+    #[msg("Min tick must be a multiple of tick spacing")]
     MinTickNotMultiple,
     
-    #[msg("Max tick은 tick spacing의 배수여야 합니다")]
+    #[msg("Max tick must be a multiple of tick spacing")]
     MaxTickNotMultiple,
     
-    #[msg("Min tick은 Max tick보다 작아야 합니다")]
+    #[msg("Min tick must be less than max tick")]
     MinTickGreaterThanMax,
     
     #[msg("Bin index out of range")]
@@ -32,7 +32,7 @@ pub enum RangeBetError {
     #[msg("비용이 최대 담보를 초과합니다")]
     CostExceedsMaxCollateral,
     
-    #[msg("시장이 아직 닫히지 않았습니다")]
+    #[msg("Market is not closed")]
     MarketIsNotClosed,
     
     #[msg("승리 bin이 아닙니다")]
@@ -44,7 +44,7 @@ pub enum RangeBetError {
     #[msg("No collateral to withdraw")]
     NoCollateralToWithdraw,
     
-    #[msg("양도할 충분한 토큰이 없습니다")]
+    #[msg("Insufficient balance")]
     InsufficientTokensToTransfer,
     
     #[msg("수학 연산에서 오버플로우 발생")]
@@ -53,7 +53,7 @@ pub enum RangeBetError {
     #[msg("수학 연산에서 언더플로우 발생")]
     MathUnderflow,
     
-    #[msg("Bin에 있는 것보다 더 많은 토큰을 판매할 수 없습니다")]
+    #[msg("Cannot sell more tokens than available in bin")]
     CannotSellMoreThanBin,
     
     #[msg("전체 공급량보다 더 많은 토큰을 판매할 수 없습니다")]
@@ -70,4 +70,10 @@ pub enum RangeBetError {
     
     #[msg("올바른 순서로 마켓을 닫아야 합니다")]
     IncorrectMarketOrderForClosing,
+    
+    #[msg("Cannot transfer to self")]
+    CannotTransferToSelf,
+    
+    #[msg("Cannot sell tokens from empty bin")]
+    CannotSellFromEmptyBin,
 } 

@@ -12,6 +12,7 @@ import {
   mintTo,
   createAssociatedTokenAccountInstruction,
   getAccount,
+  createAccount,
 } from "@solana/spl-token";
 
 export interface TestEnv {
@@ -28,6 +29,7 @@ export interface TestEnv {
   collateralMint: anchor.web3.PublicKey;
   vault: anchor.web3.PublicKey;
   vaultAuthority: anchor.web3.PublicKey;
+  vaultAuthorityBump: number;
   marketId: number;
   tickSpacing: number;
   minTick: number;
@@ -240,24 +242,27 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
   const maxTick = 360;
   const closeTime = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60; // 일주일 후
 
-  // vault authority PDA 계산
+  // 첫 번째 마켓 ID (0)에 대한 vault authority PDA 계산
+  let marketId = 0;
   const [vaultAuthority, vaultAuthorityBump] =
     await anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), new BN(0).toArrayLike(Buffer, "le", 8)],
+      [Buffer.from("vault"), new BN(marketId).toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
-  // 간소화된 시스템 디자인으로 테스트 수행
-  // 실제 프로그램에서는 PDA가 소유한 토큰 계정을 프로그램 내에서 생성해야 합니다.
-  // 하지만 테스트를 위해 관리자의 토큰 계정을 vault로 사용하겠습니다.
-  // 이렇게 하면 실제 토큰 계정 소유권 문제를 우회할 수 있습니다.
-  const vault = adminTokenAccount; // 관리자의 토큰 계정을 vault로 사용
+  console.log("🏦 Vault Authority PDA 계산 완료:", vaultAuthority.toString());
 
-  console.log("🏦 Vault 계정 설정 완료: ", vault.toString());
+  // PDA가 소유자인 토큰 계정을 생성 (관리자가 지불)
+  // 여기서는 계정만 생성하고, 자금은 사용자가 buyTokens를 통해 채움
+  const vault = await createAccount(
+    provider.connection,
+    admin.payer,
+    collateralMint,
+    vaultAuthority, // PDA가 소유자
+    Keypair.generate() // 새 계정 키페어 생성
+  );
 
-  // 첫 번째 마켓 생성을 위한 설정
-  // 마켓 ID는 0으로 고정 (첫 번째 마켓)
-  let marketId = 0;
+  console.log("🏦 Vault 계정 설정 완료:", vault.toString());
 
   // 마켓 계정 주소 (PDA) 계산
   const [market, marketBump] =
@@ -316,12 +321,20 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
       // 기존 마켓을 닫지 않고 새 마켓을 생성
       // 이 방식은 프로그램의 마켓 종료 순서 제약을 우회합니다
       console.log("🔄 새 테스트 마켓 생성 중...");
-      const { market: newMarket, marketId: newMarketId } =
-        await createNewMarket();
+      const {
+        market: newMarket,
+        marketId: newMarketId,
+        vault: newVault,
+        vaultAuthority: newVaultAuthority,
+        vaultAuthorityBump: newVaultAuthorityBump,
+      } = await createNewMarket();
 
       // 반환할 객체에 설정할 수 있도록 새 값 저장
       updatedMarket = newMarket;
       updatedMarketId = newMarketId;
+      updatedVault = newVault;
+      updatedVaultAuthority = newVaultAuthority;
+      updatedVaultAuthorityBump = newVaultAuthorityBump;
       console.log("✅ 새 마켓 ID", newMarketId, "생성 완료 (테스트용)");
     } catch (e) {
       console.log("⚠️ 새 마켓 생성 중 오류 발생:", e.message);
@@ -331,6 +344,9 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
   // 마켓 업데이트를 위한 임시 변수
   let updatedMarket = market;
   let updatedMarketId = marketId;
+  let updatedVault = vault;
+  let updatedVaultAuthority = vaultAuthority;
+  let updatedVaultAuthorityBump = vaultAuthorityBump;
 
   // 새 마켓 생성 함수
   async function createNewMarket(params?: {
@@ -349,6 +365,30 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
       program.programId
     );
 
+    // 새 마켓에 대한 vault authority 계산
+    const [newVaultAuthority, newVaultAuthorityBump] =
+      await anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("vault"),
+          new BN(newMarketId).toArrayLike(Buffer, "le", 8),
+        ],
+        program.programId
+      );
+
+    // 새 마켓용 토큰 vault 생성
+    const newVault = await createAccount(
+      provider.connection,
+      admin.payer,
+      collateralMint,
+      newVaultAuthority,
+      Keypair.generate()
+    );
+
+    console.log(
+      `🏦 새 마켓 ID ${newMarketId}의 Vault 계정 설정:`,
+      newVault.toString()
+    );
+
     // 새 마켓 생성
     console.log("🔨 새 마켓 ID", newMarketId, "생성 중...");
     await program.methods
@@ -365,7 +405,18 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
       .rpc();
     console.log("✅ 새 마켓 ID", newMarketId, "생성 완료!");
 
-    return { market: newMarket, marketId: newMarketId };
+    // 업데이트된 값들 저장
+    updatedVault = newVault;
+    updatedVaultAuthority = newVaultAuthority;
+    updatedVaultAuthorityBump = newVaultAuthorityBump;
+
+    return {
+      market: newMarket,
+      marketId: newMarketId,
+      vault: newVault,
+      vaultAuthority: newVaultAuthority,
+      vaultAuthorityBump: newVaultAuthorityBump,
+    };
   }
 
   // 토큰 보충 함수
@@ -414,8 +465,9 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     programState,
     market: updatedMarket,
     collateralMint,
-    vault,
-    vaultAuthority,
+    vault: updatedVault,
+    vaultAuthority: updatedVaultAuthority,
+    vaultAuthorityBump: updatedVaultAuthorityBump,
     marketId: updatedMarketId,
     tickSpacing,
     minTick,
@@ -435,6 +487,9 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
       // resetMarket 내에서 업데이트한 값으로 객체 속성 갱신
       testEnv.market = updatedMarket;
       testEnv.marketId = updatedMarketId;
+      testEnv.vault = updatedVault;
+      testEnv.vaultAuthority = updatedVaultAuthority;
+      testEnv.vaultAuthorityBump = updatedVaultAuthorityBump;
     },
     createNewMarket,
     replenishTokens,

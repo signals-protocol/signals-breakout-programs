@@ -33,7 +33,7 @@ pub struct TransferPosition<'info> {
         payer = from_user,
         space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // 기본 100개 Bin에 대한 공간 예약
         seeds = [b"pos", to_user.key().as_ref(), &from_position.market_id.to_le_bytes()],
-        bump
+        bump,
     )]
     pub to_position: Account<'info, UserMarketPosition>,
     
@@ -42,8 +42,21 @@ pub struct TransferPosition<'info> {
 }
 
 pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<u16>, amounts: Vec<u64>) -> Result<()> {
+    // 자기 자신에게 전송하는지 확인
+    require!(
+        ctx.accounts.from_user.key() != ctx.accounts.to_user.key(),
+        RangeBetError::CannotTransferToSelf
+    );
+
     // Bin 및 금액 배열 길이 확인
     require!(bin_indices.len() == amounts.len(), RangeBetError::ArrayLengthMismatch);
+    
+    // 최소 한 개 이상의 토큰을 전송하는지 확인
+    let mut total_amount = 0;
+    for amount in &amounts {
+        total_amount += amount;
+    }
+    require!(total_amount > 0, RangeBetError::NoTokensToBuy);
     
     // 초기화가 필요한 경우
     if ctx.accounts.to_position.owner == Pubkey::default() {

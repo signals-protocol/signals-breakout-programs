@@ -1,14 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { BN } from "bn.js";
 import { setupTestEnvironment, TestEnv } from "./setup";
-import { RangeBetProgram } from "../target/types/range_bet_program";
-import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-} from "@solana/spl-token";
 
 describe("Market Creation", () => {
   let env: TestEnv;
@@ -76,21 +69,6 @@ describe("Market Creation", () => {
 
   it("유효하지 않은 틱 파라미터로 마켓 생성이 실패해야 합니다", async () => {
     const closeTime = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-    const programState = await env.program.account.programState.fetch(
-      env.programState
-    );
-    const newMarketId = programState.marketCount.toNumber();
-
-    const [newMarket] = await anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("market"), new BN(newMarketId).toArrayLike(Buffer, "le", 8)],
-      env.program.programId
-    );
-
-    // vault authority PDA 계산
-    const [vaultAuthority] = await anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), new BN(newMarketId).toArrayLike(Buffer, "le", 8)],
-      env.program.programId
-    );
 
     // tickSpacing이 0인 경우 (양수여야 함)
     try {
@@ -183,11 +161,6 @@ describe("Market Creation", () => {
       env.programState
     );
     const newMarketId = programState.marketCount.toNumber();
-
-    const [newMarket] = await anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("market"), new BN(newMarketId).toArrayLike(Buffer, "le", 8)],
-      env.program.programId
-    );
 
     // 일반 사용자가 마켓 생성 시도
     try {

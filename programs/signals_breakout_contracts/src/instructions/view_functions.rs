@@ -100,6 +100,12 @@ pub fn calculate_bin_sell_cost(
     // 선택한 Bin의 현재 q 값 가져오기
     let bin_q = market.bins[index as usize];
     
+    // 빈 마켓이거나 빈 bin인 경우 판매 불가
+    require!(bin_q > 0, RangeBetError::CannotSellFromEmptyBin);
+    
+    // 판매 수량이 bin의 토큰 수량보다 많으면 에러
+    require!(amount <= bin_q, RangeBetError::CannotSellMoreThanBin);
+    
     // 판매 수익 계산
     let sell_revenue = RangeBetMath::calculate_sell_cost(amount, bin_q, market.t_total)?;
     

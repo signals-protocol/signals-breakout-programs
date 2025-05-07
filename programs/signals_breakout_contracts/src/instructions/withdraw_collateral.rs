@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, TokenAccount, Token, Transfer};
-use crate::state::{ProgramState, CollateralOut};
+use crate::state::{ProgramState, CollateralOut, Market};
 use crate::errors::RangeBetError;
 
 #[derive(Accounts)]
@@ -15,6 +15,14 @@ pub struct WithdrawCollateral<'info> {
         constraint = program_state.owner == owner.key() @ RangeBetError::OwnerOnly
     )]
     pub program_state: Account<'info, ProgramState>,
+    
+    #[account(
+        mut,
+        seeds = [b"market", &market_id.to_le_bytes()],
+        bump,
+        constraint = market.closed @ RangeBetError::MarketIsNotClosed,
+    )]
+    pub market: Account<'info, Market>,
     
     #[account(mut)]
     pub owner_token_account: Account<'info, TokenAccount>,
@@ -37,8 +45,8 @@ pub fn withdraw_collateral(
     ctx: Context<WithdrawCollateral>,
     market_id: u64,
 ) -> Result<()> {
-    // 인출할 수 있는 금액 (Vault의 전체 잔액)
-    let amount = ctx.accounts.vault.amount;
+    // 인출할 수 있는 금액 (마켓의 담보 잔액)
+    let amount = ctx.accounts.market.collateral_balance;
     
     // 인출할 금액이 있는지 확인
     require!(amount > 0, RangeBetError::NoCollateralToWithdraw);
@@ -69,6 +77,9 @@ pub fn withdraw_collateral(
     );
     
     token::transfer(cpi_ctx, amount)?;
+    
+    // 마켓의 담보 잔액을 0으로 설정
+    ctx.accounts.market.collateral_balance = 0;
     
     // 이벤트 발생
     emit!(CollateralOut {
