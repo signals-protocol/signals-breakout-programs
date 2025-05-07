@@ -28,7 +28,12 @@ pub fn toggle_market_status(ctx: Context<ToggleMarketStatus>, market_id: u64, ac
     // 마켓 활성/비활성화 상태 토글
     let market = &mut ctx.accounts.market;
     market.active = active;
-    
+
+    require!(
+        market.closed,
+        RangeBetError::MarketClosed
+    );
+
     if active {
         msg!("마켓 활성화: ID = {}", market_id);
     } else {

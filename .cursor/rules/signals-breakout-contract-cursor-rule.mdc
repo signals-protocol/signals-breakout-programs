@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+We are using yarn.
+Must Not Use Ts-ignore
