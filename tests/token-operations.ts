@@ -156,7 +156,6 @@ describe("Token Operations", () => {
         .rpc();
 
       // 구매 시도
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
       try {
         await env.program.methods
           .buyTokens(
@@ -208,9 +207,8 @@ describe("Token Operations", () => {
 
     it("빈 인덱스가 범위를 벗어날 경우 구매 시도가 실패해야 합니다", async () => {
       // 범위를 벗어난 인덱스
-      const outOfRangeIndex = Math.ceil(
-        Math.abs((env.maxTick + env.tickSpacing) / env.tickSpacing)
-      );
+      const outOfRangeIndex =
+        Math.abs((env.maxTick - env.minTick) / env.tickSpacing) + 1;
 
       try {
         await env.program.methods
@@ -366,7 +364,11 @@ describe("Token Operations", () => {
       const transferAmount = amounts[0].div(new BN(2));
 
       await env.program.methods
-        .transferPosition([binIndices[0]], [transferAmount])
+        .transferPosition(
+          new BN(env.marketId),
+          [binIndices[0]],
+          [transferAmount]
+        )
         .accounts({
           fromUser: env.user1.publicKey,
           toUser: env.user2.publicKey,
@@ -432,7 +434,7 @@ describe("Token Operations", () => {
       // 자신에게 이전 시도
       try {
         await env.program.methods
-          .transferPosition([0], [new BN(50_000_000_000)])
+          .transferPosition(new BN(env.marketId), [0], [new BN(50_000_000_000)])
           .accounts({
             fromUser: env.user1.publicKey,
             toUser: env.user1.publicKey, // 자신에게 이전
@@ -467,6 +469,7 @@ describe("Token Operations", () => {
       try {
         await env.program.methods
           .transferPosition(
+            new BN(env.marketId),
             [0],
             [amount.add(new BN(10_000_000))] // 보유량보다 더 많음
           )

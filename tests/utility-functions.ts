@@ -189,7 +189,7 @@ describe("Utility Functions", () => {
       }
     });
 
-    it("보유한 수량보다 많이 판매하려 할 때 실패해야 합니다", async () => {
+    it("빈이 보유한 수량보다 많이 판매하려 할 때 실패해야 합니다", async () => {
       const amount = new BN(100_000_000_000); // 100 tokens
 
       await env.program.methods
@@ -202,14 +202,14 @@ describe("Utility Functions", () => {
         .signers([env.user1])
         .rpc();
 
-      // 보유량보다 많은 양의 판매 비용 계산 시도
+      // 빈의 보유량보다 많은 양의 판매 비용 계산 시도
       try {
         await env.program.methods
           .calculateBinSellCost(new BN(env.marketId), 0, amount.add(new BN(1)))
           .accounts({})
           .view();
 
-        expect.fail("보유량보다 많은 양의 판매 비용 계산이 실패해야 함");
+        expect.fail("빈의 보유량보다 많은 양의 판매 비용 계산이 실패해야 함");
       } catch (e) {
         expect(e.toString()).to.include(
           "Cannot sell more tokens than available in bin"

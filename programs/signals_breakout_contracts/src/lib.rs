@@ -76,11 +76,12 @@ pub mod range_bet_program {
 
     pub fn transfer_position(
         ctx: Context<TransferPosition>,
+        market_id: u64,
         bin_indices: Vec<u16>,
         amounts: Vec<u64>,
     ) -> Result<()> {
         msg!("Transfer Position");
-        instructions::transfer_position::transfer_position(ctx, bin_indices, amounts)
+        instructions::transfer_position::transfer_position(ctx, market_id, bin_indices, amounts)
     }
 
     // View 함수 (시뮬레이션용 인스트럭션)

@@ -2,10 +2,10 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum RangeBetError {
-    #[msg("시장이 활성화되지 않았습니다")]
+    #[msg("Market is not active")]
     MarketNotActive,
     
-    #[msg("Market is already closed")]
+    #[msg("Market is closed")]
     MarketClosed,
     
     #[msg("Tick spacing must be positive")]

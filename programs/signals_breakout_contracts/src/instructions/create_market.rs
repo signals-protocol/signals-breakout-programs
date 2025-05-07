@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program};
 use anchor_spl::{
     token::{Mint, TokenAccount, Token},
     associated_token::AssociatedToken,
@@ -24,9 +24,9 @@ pub struct CreateMarket<'info> {
     #[account(
         init,
         payer = owner,
-        space = 8 + std::mem::size_of::<Market>() + 16 * ((max_tick - min_tick) / tick_spacing as i64 + 1) as usize, // 마켓 + bins 예상 공간
         seeds = [b"market", program_state.market_count.to_le_bytes().as_ref()],
-        bump
+        bump,
+        space = 8 + std::mem::size_of::<Market>() // 최소 크기만 할당 (bins 없이)
     )]
     pub market: Account<'info, Market>,
     
@@ -63,15 +63,47 @@ pub fn create_market(
     max_tick: i64,
     close_ts: i64,
 ) -> Result<()> {
-    // 유효성 검사
+    // 1. 파라미터 검증
     require!(tick_spacing > 0, RangeBetError::InvalidTickSpacing);
     require!(min_tick % tick_spacing as i64 == 0, RangeBetError::MinTickNotMultiple);
     require!(max_tick % tick_spacing as i64 == 0, RangeBetError::MaxTickNotMultiple);
     require!(min_tick < max_tick, RangeBetError::MinTickGreaterThanMax);
+
+    // 2. bins 길이 계산
+    let bin_count = ((max_tick - min_tick) / tick_spacing as i64 + 1) as usize;
     
+    // 3. 계정 크기 증가 및 rent 계산
+    let additional_space = 16 * bin_count;  // Vec 메타데이터 + u64 데이터
+    let new_size = 8 + std::mem::size_of::<Market>() + additional_space;
+    
+    // 필요한 lamports 계산
+    let rent = Rent::get()?;
+    let needed_lamports = rent.minimum_balance(new_size);
+    let market_ai = ctx.accounts.market.to_account_info();
+    
+    // 현재 계정의 lamports가 충분하지 않으면 추가 전송
+    if needed_lamports > market_ai.lamports() {
+        let diff = needed_lamports - market_ai.lamports();
+        
+        // owner → market 로 lamports 전송
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.owner.to_account_info(),
+                    to: market_ai.clone(),
+                },
+            ),
+            diff,
+        )?;
+    }
+    
+    // realloc 수행
+    market_ai.realloc(new_size, false)?;
+
     let market_id = ctx.accounts.program_state.market_count;
     
-    // 마켓 초기화
+    // 4. 마켓 초기화
     let market = &mut ctx.accounts.market;
     market.active = true;
     market.closed = false;
@@ -84,11 +116,10 @@ pub fn create_market(
     market.open_ts = Clock::get()?.unix_timestamp;
     market.close_ts = close_ts;
     
-    // 빈 배열 대신 bins 배열을 생성하고 0으로 초기화
-    let bin_count = ((max_tick - min_tick) / tick_spacing as i64 + 1) as usize;
+    // bins 배열을 생성하고 0으로 초기화
     market.bins = vec![0; bin_count];
     
-    // 프로그램 상태 업데이트
+    // 5. 프로그램 상태 업데이트
     ctx.accounts.program_state.market_count += 1;
     
     // 이벤트 발생

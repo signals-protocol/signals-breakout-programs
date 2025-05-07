@@ -3,6 +3,7 @@ use crate::state::{Market, UserMarketPosition, BinBal};
 use crate::errors::RangeBetError;
 
 #[derive(Accounts)]
+#[instruction(market_id: u64)]
 pub struct TransferPosition<'info> {
     #[account(mut)]
     pub from_user: Signer<'info>,
@@ -13,7 +14,7 @@ pub struct TransferPosition<'info> {
     
     /// 마켓 정보
     #[account(
-        seeds = [b"market", &from_position.market_id.to_le_bytes()],
+        seeds = [b"market", &market_id.to_le_bytes()],
         bump
     )]
     pub market: Account<'info, Market>,
@@ -21,7 +22,7 @@ pub struct TransferPosition<'info> {
     /// 양도자 포지션
     #[account(
         mut,
-        seeds = [b"pos", from_user.key().as_ref(), &from_position.market_id.to_le_bytes()],
+        seeds = [b"pos", from_user.key().as_ref(), &market_id.to_le_bytes()],
         bump,
         constraint = from_position.owner == from_user.key() @ RangeBetError::OwnerOnly
     )]
@@ -32,7 +33,7 @@ pub struct TransferPosition<'info> {
         init_if_needed,
         payer = from_user,
         space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // 기본 100개 Bin에 대한 공간 예약
-        seeds = [b"pos", to_user.key().as_ref(), &from_position.market_id.to_le_bytes()],
+        seeds = [b"pos", to_user.key().as_ref(), &market_id.to_le_bytes()],
         bump,
     )]
     pub to_position: Account<'info, UserMarketPosition>,
@@ -41,7 +42,7 @@ pub struct TransferPosition<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<u16>, amounts: Vec<u64>) -> Result<()> {
+pub fn transfer_position(ctx: Context<TransferPosition>, market_id: u64, bin_indices: Vec<u16>, amounts: Vec<u64>) -> Result<()> {
     // 자기 자신에게 전송하는지 확인
     require!(
         ctx.accounts.from_user.key() != ctx.accounts.to_user.key(),
@@ -61,7 +62,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, bin_indices: Vec<u16>, 
     // 초기화가 필요한 경우
     if ctx.accounts.to_position.owner == Pubkey::default() {
         ctx.accounts.to_position.owner = ctx.accounts.to_user.key();
-        ctx.accounts.to_position.market_id = ctx.accounts.from_position.market_id;
+        ctx.accounts.to_position.market_id = market_id;
         ctx.accounts.to_position.bins = Vec::new();
     }
     

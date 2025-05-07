@@ -1,9 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { BN } from "bn.js";
 import { setupTestEnvironment, TestEnv } from "./setup";
-import { RangeBetProgram } from "../target/types/range_bet_program";
 
 describe("Market Management", () => {
   let env: TestEnv;
@@ -43,6 +41,8 @@ describe("Market Management", () => {
         )
         .accounts({
           user: env.user1.publicKey,
+          userTokenAccount: env.userTokenAccounts.user1,
+          vault: env.vault,
         })
         .signers([env.user1])
         .rpc();
@@ -151,7 +151,7 @@ describe("Market Management", () => {
 
       expect.fail("마감된 마켓을 비활성화하면 실패해야 함");
     } catch (e) {
-      expect(e.toString()).to.include("Market is already closed");
+      expect(e.toString()).to.include("Market is closed");
     }
 
     // 활성화 시도
@@ -165,7 +165,7 @@ describe("Market Management", () => {
 
       expect.fail("마감된 마켓을 활성화하면 실패해야 함");
     } catch (e) {
-      expect(e.toString()).to.include("Market is already closed");
+      expect(e.toString()).to.include("Market is closed");
     }
   });
 
