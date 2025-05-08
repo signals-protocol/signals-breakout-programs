@@ -5,6 +5,37 @@ import { BN } from "bn.js";
 import { setupTestEnvironment, TestEnv } from "./setup";
 import { RangeBetProgram } from "../target/types/range_bet_program";
 
+// Anchor 에러를 테스트하기 위한 헬퍼 함수
+async function expectAnchorError(
+  promiseFn: () => Promise<any>,
+  errorText: string
+) {
+  try {
+    await promiseFn();
+    expect.fail("예상된 에러가 발생하지 않았습니다");
+  } catch (e) {
+    // SimulateError의 경우 simulationResponse.logs 경로에 로그가 있음
+    if (e.simulationResponse && e.simulationResponse.logs) {
+      const errorLogs = e.simulationResponse.logs.join("\n");
+      expect(errorLogs).to.include(errorText);
+    }
+    // 일반 에러의 경우 직접 logs 속성에 접근
+    else if (e.logs) {
+      const errorLogs = e.logs.join("\n");
+      expect(errorLogs).to.include(errorText);
+    }
+    // 에러 메시지에서 확인 시도
+    else if (e.message) {
+      expect(e.message).to.include(errorText);
+    }
+    // 그 외 경우에는 전체 에러 객체를 문자열화하여 확인
+    else {
+      const errorString = JSON.stringify(e);
+      expect(errorString).to.include(errorText);
+    }
+  }
+}
+
 describe("Utility Functions", () => {
   let env: TestEnv;
 
@@ -39,17 +70,17 @@ describe("Utility Functions", () => {
       // 빈 마켓에서 계산
       const cost = await env.program.methods
         .calculateBinCost(new BN(env.marketId), 0, amount)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // 비용은 수량과 동일해야 함
       expect(cost.toString()).to.equal(amount.toString());
     });
 
-    it("비활성화된 마켓에서는 0을 반환해야 합니다", async () => {
+    it("비활성화된 마켓에서는 에러가 발생해야 합니다", async () => {
       // 먼저 토큰 구매하여 마켓에 상태 추가
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
-
       await env.program.methods
         .buyTokens(
           new BN(env.marketId),
@@ -73,17 +104,20 @@ describe("Utility Functions", () => {
         })
         .rpc();
 
-      // 비활성화된 마켓에서 계산
-      const cost = await env.program.methods
-        .calculateBinCost(new BN(env.marketId), 0, new BN(100_000_000_000))
-        .accounts({})
-        .view();
-
-      // 결과는 0이어야 함
-      expect(cost.toString()).to.equal("0");
+      // 헬퍼 함수 사용
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateBinCost(new BN(env.marketId), 0, new BN(100_000_000_000))
+            .accounts({
+              market: env.market,
+            })
+            .view(),
+        "MarketNotActive"
+      );
     });
 
-    it("마감된 마켓에서는 0을 반환해야 합니다", async () => {
+    it("마감된 마켓에서는 에러가 발생해야 합니다", async () => {
       // 새 마켓 생성
       const { market: newMarket, marketId: newMarketId } =
         await env.createNewMarket();
@@ -92,39 +126,40 @@ describe("Utility Functions", () => {
       await env.closeMarketsSequentially(newMarketId, 0);
 
       // 비용 조회 시도
-      const result = await env.program.methods
-        .calculateBinCost(new BN(newMarketId), 0, new BN(100_000_000_000))
-        .accounts({
-          market: newMarket,
-        })
-        .view();
-
-      expect(result.toNumber()).to.equal(0);
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateBinCost(new BN(newMarketId), 0, new BN(100_000_000_000))
+            .accounts({
+              market: newMarket,
+            })
+            .view(),
+        "MarketClosed"
+      );
     });
 
-    it("범위를 벗어난 빈 인덱스는 0을 반환해야 합니다", async () => {
+    it("범위를 벗어난 빈 인덱스로 계산 시 에러가 발생해야 합니다", async () => {
       // 범위를 벗어난 인덱스로 계산
-      const outOfRangeIndex = Math.ceil(
-        Math.abs((env.maxTick + env.tickSpacing) / env.tickSpacing)
+      const outOfRangeIndex =
+        Math.abs((env.maxTick - env.minTick) / env.tickSpacing) + 1;
+
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateBinCost(
+              new BN(env.marketId),
+              outOfRangeIndex,
+              new BN(100_000_000_000)
+            )
+            .accounts({
+              market: env.market,
+            })
+            .view(),
+        "BinIndexOutOfRange"
       );
-
-      const cost = await env.program.methods
-        .calculateBinCost(
-          new BN(env.marketId),
-          outOfRangeIndex,
-          new BN(100_000_000_000)
-        )
-        .accounts({})
-        .view();
-
-      // 결과는 0이어야 함
-      expect(cost.toString()).to.equal("0");
     });
 
     it("q < T 일 때 비용은 수량보다 작아야 합니다", async () => {
-      // 여러 빈에 토큰 구매하여 T 증가
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
-
       // 우선 빈 1에 토큰 구매하여 T 증가
       await env.program.methods
         .buyTokens(
@@ -145,7 +180,9 @@ describe("Utility Functions", () => {
       const amount = new BN(50_000_000_000); // 50 tokens
       const cost = await env.program.methods
         .calculateBinCost(new BN(env.marketId), 0, amount)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // q=0, T>0 상태에서 비용은 수량보다 작아야 함
@@ -173,20 +210,20 @@ describe("Utility Functions", () => {
 
     it("빈 마켓에서는 조회 시 실패해야 합니다", async () => {
       // 빈 마켓에서 판매 비용 계산 시도
-      try {
-        await env.program.methods
-          .calculateBinSellCost(
-            new BN(env.marketId),
-            0,
-            new BN(100_000_000_000)
-          )
-          .accounts({})
-          .view();
-
-        expect.fail("빈 마켓에서 판매 비용 계산이 실패해야 함");
-      } catch (e) {
-        expect(e.toString()).to.include("Cannot sell tokens from empty bin");
-      }
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateBinSellCost(
+              new BN(env.marketId),
+              0,
+              new BN(100_000_000_000)
+            )
+            .accounts({
+              market: env.market,
+            })
+            .view(),
+        "Cannot sell tokens from empty bin"
+      );
     });
 
     it("빈이 보유한 수량보다 많이 판매하려 할 때 실패해야 합니다", async () => {
@@ -203,24 +240,24 @@ describe("Utility Functions", () => {
         .rpc();
 
       // 빈의 보유량보다 많은 양의 판매 비용 계산 시도
-      try {
-        await env.program.methods
-          .calculateBinSellCost(new BN(env.marketId), 0, amount.add(new BN(1)))
-          .accounts({})
-          .view();
-
-        expect.fail("빈의 보유량보다 많은 양의 판매 비용 계산이 실패해야 함");
-      } catch (e) {
-        expect(e.toString()).to.include(
-          "Cannot sell more tokens than available in bin"
-        );
-      }
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateBinSellCost(
+              new BN(env.marketId),
+              0,
+              amount.add(new BN(1))
+            )
+            .accounts({
+              market: env.market,
+            })
+            .view(),
+        "Cannot sell more tokens than available in bin"
+      );
     });
 
     it("q=T 상태에서 판매 비용은 판매 수량과 동일해야 합니다", async () => {
       // 먼저 토큰 구매
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
-
       const buyAmount = new BN(100_000_000_000); // 100 tokens
 
       await env.program.methods
@@ -242,7 +279,9 @@ describe("Utility Functions", () => {
       const sellAmount = new BN(50_000_000_000); // 50 tokens (절반 판매)
       const revenue = await env.program.methods
         .calculateBinSellCost(new BN(env.marketId), 0, sellAmount)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // q=T 상태에서 판매 비용은 판매 수량과 동일해야 함
@@ -251,8 +290,6 @@ describe("Utility Functions", () => {
 
     it("구매 후 전체 판매 시 원래 비용을 돌려받아야 합니다", async () => {
       // 먼저 토큰 구매
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
-
       const buyAmount = new BN(100_000_000_000); // 100 tokens
 
       // 구매 트랜잭션
@@ -278,7 +315,9 @@ describe("Utility Functions", () => {
       // 모든 토큰 판매 시 판매 비용
       const revenue = await env.program.methods
         .calculateBinSellCost(new BN(env.marketId), 0, buyAmount)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // 판매 비용은 구매 비용과 동일해야 함
@@ -310,14 +349,16 @@ describe("Utility Functions", () => {
       // 계산
       const amount = await env.program.methods
         .calculateXForBin(new BN(env.marketId), 0, cost)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // 빈 마켓에서는 비용으로 살 수 있는 토큰 수량은 비용과 동일해야 함
       expect(amount.toString()).to.equal(cost.toString());
     });
 
-    it("비활성화된 마켓에서는 0을 반환해야 합니다", async () => {
+    it("비활성화된 마켓에서는 에러가 발생해야 합니다", async () => {
       // 마켓 비활성화
       await env.program.methods
         .activateMarket(new BN(env.marketId), false)
@@ -327,13 +368,16 @@ describe("Utility Functions", () => {
         .rpc();
 
       // 비활성화된 마켓에서 계산
-      const amount = await env.program.methods
-        .calculateXForBin(new BN(env.marketId), 0, new BN(100_000_000_000))
-        .accounts({})
-        .view();
-
-      // 결과는 0이어야 함
-      expect(amount.toString()).to.equal("0");
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateXForBin(new BN(env.marketId), 0, new BN(100_000_000_000))
+            .accounts({
+              market: env.market,
+            })
+            .view(),
+        "MarketNotActive"
+      );
 
       // 다음 테스트를 위해 새 마켓 생성
       const newMarket = await env.createNewMarket();
@@ -341,7 +385,7 @@ describe("Utility Functions", () => {
       env.marketId = newMarket.marketId;
     });
 
-    it("마감된 마켓에서는 0을 반환해야 합니다", async () => {
+    it("마감된 마켓에서는 에러가 발생해야 합니다", async () => {
       // 새 마켓 생성
       const { market: newMarket, marketId: newMarketId } =
         await env.createNewMarket();
@@ -350,39 +394,40 @@ describe("Utility Functions", () => {
       await env.closeMarketsSequentially(newMarketId, 0);
 
       // 토큰 수량 조회 시도
-      const result = await env.program.methods
-        .calculateXForBin(new BN(newMarketId), 0, new BN(100_000_000_000))
-        .accounts({
-          market: newMarket,
-        })
-        .view();
-
-      expect(result.toNumber()).to.equal(0);
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateXForBin(new BN(newMarketId), 0, new BN(100_000_000_000))
+            .accounts({
+              market: newMarket,
+            })
+            .view(),
+        "MarketClosed"
+      );
     });
 
-    it("범위를 벗어난 빈 인덱스는 0을 반환해야 합니다", async () => {
+    it("범위를 벗어난 빈 인덱스로 계산 시 에러가 발생해야 합니다", async () => {
       // 범위를 벗어난 인덱스로 계산
-      const outOfRangeIndex = Math.ceil(
-        Math.abs((env.maxTick + env.tickSpacing) / env.tickSpacing)
+      const outOfRangeIndex =
+        Math.abs((env.maxTick - env.minTick) / env.tickSpacing) + 1;
+
+      await expectAnchorError(
+        () =>
+          env.program.methods
+            .calculateXForBin(
+              new BN(env.marketId),
+              outOfRangeIndex,
+              new BN(100_000_000_000)
+            )
+            .accounts({
+              market: env.market,
+            })
+            .view(),
+        "BinIndexOutOfRange"
       );
-
-      const amount = await env.program.methods
-        .calculateXForBin(
-          new BN(env.marketId),
-          outOfRangeIndex,
-          new BN(100_000_000_000)
-        )
-        .accounts({})
-        .view();
-
-      // 결과는 0이어야 함
-      expect(amount.toString()).to.equal("0");
     });
 
     it("q < T 일 때 비용으로 살 수 있는 토큰 수량은 비용보다 커야 합니다", async () => {
-      // 여러 빈에 토큰 구매하여 T 증가
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
-
       // 우선 빈 1에 토큰 구매하여 T 증가
       await env.program.methods
         .buyTokens(
@@ -403,7 +448,9 @@ describe("Utility Functions", () => {
       const cost = new BN(50_000_000_000); // 50 tokens worth
       const amount = await env.program.methods
         .calculateXForBin(new BN(env.marketId), 0, cost)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // q=0, T>0 상태에서 수량은 비용보다 커야 함
@@ -426,8 +473,6 @@ describe("Utility Functions", () => {
       }
 
       // 먼저 토큰 구매하여 마켓에 상태 추가
-      const userPosition = await env.getUserPosition(env.user1, env.marketId);
-
       await env.program.methods
         .buyTokens(
           new BN(env.marketId),
@@ -449,13 +494,17 @@ describe("Utility Functions", () => {
       // 1) 먼저 수량 -> 비용 계산
       const cost = await env.program.methods
         .calculateBinCost(new BN(env.marketId), 0, testAmount)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // 2) 그 다음 비용 -> 수량 계산
       const calculatedAmount = await env.program.methods
         .calculateXForBin(new BN(env.marketId), 0, cost)
-        .accounts({})
+        .accounts({
+          market: env.market,
+        })
         .view();
 
       // 작은 반올림 오차 허용하여 원래 수량과 동일해야 함
