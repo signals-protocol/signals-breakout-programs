@@ -10,13 +10,13 @@ describe("Collateral Withdrawal", () => {
   });
 
   beforeEach(async () => {
-    // 각 테스트마다 마켓 초기화
+    // Initialize market for each test
     await env.resetMarket();
   });
 
-  it("관리자가 마켓 담보금을 출금할 수 없어야 합니다 (닫히지 않은 마켓)", async () => {
-    // 먼저 사용자가 토큰을 구매하여 담보금 추가
-    const binIndices = [0, 1, 2]; // 0, 60, 120에 해당
+  it("Admin should not be able to withdraw market collateral (market not closed)", async () => {
+    // First have user buy tokens to add collateral
+    const binIndices = [0, 1, 2]; // Corresponding to 0, 60, 120
     const amounts = [
       new BN(100_000_000_000),
       new BN(200_000_000_000),
@@ -24,7 +24,7 @@ describe("Collateral Withdrawal", () => {
     ];
     const maxCollateral = new BN(500_000_000_000);
 
-    // 토큰 구매
+    // Buy tokens
     await env.program.methods
       .buyTokens(new BN(env.marketId), binIndices, amounts, maxCollateral)
       .accounts({
@@ -35,11 +35,11 @@ describe("Collateral Withdrawal", () => {
       .signers([env.user1])
       .rpc();
 
-    // 마켓 정보 확인하여 담보금이 저장되었는지 확인
+    // Verify market info to ensure collateral was stored
     const marketInfoBefore = await env.program.account.market.fetch(env.market);
     expect(marketInfoBefore.collateralBalance.toString()).to.not.equal("0");
 
-    // 닫히지 않은 마켓에서 관리자가 담보금 출금 시도
+    // Admin attempts to withdraw collateral from market that's not closed
     try {
       await env.program.methods
         .withdrawCollateral(new BN(env.marketId))
@@ -50,17 +50,17 @@ describe("Collateral Withdrawal", () => {
         })
         .rpc();
 
-      expect.fail("닫히지 않은 마켓에서 담보금 출금이 실패해야 함");
+      expect.fail("Collateral withdrawal from unclosed market should fail");
     } catch (e) {
       expect(e.toString()).to.include("Market is not closed");
     }
   });
 
-  it("관리자가 아닌 사용자는 담보금을 출금할 수 없어야 합니다", async () => {
-    // 마켓 닫기
+  it("Non-admin users should not be able to withdraw collateral", async () => {
+    // Close market
     await env.closeMarketsSequentially(env.marketId, 0);
 
-    // 일반 사용자가 담보금 출금 시도
+    // Regular user attempts to withdraw collateral
     try {
       await env.program.methods
         .withdrawCollateral(new BN(env.marketId))
@@ -72,17 +72,17 @@ describe("Collateral Withdrawal", () => {
         .signers([env.user1])
         .rpc();
 
-      expect.fail("관리자가 아닌 사용자가 담보금을 출금하면 실패해야 함");
+      expect.fail("Collateral withdrawal by non-admin user should fail");
     } catch (e) {
       expect(e.toString()).to.include("Owner only function");
     }
   });
 
-  it("담보금이 없을 때 출금 시도는 실패해야 합니다", async () => {
-    // 마켓 닫기
+  it("Withdrawal attempt should fail when there's no collateral", async () => {
+    // Close market
     await env.closeMarketsSequentially(env.marketId, 0);
 
-    // 아직 토큰 구매가 없는 마켓에서 출금 시도
+    // Attempt to withdraw from market with no token purchases
     try {
       await env.program.methods
         .withdrawCollateral(new BN(env.marketId))
@@ -93,19 +93,19 @@ describe("Collateral Withdrawal", () => {
         })
         .rpc();
 
-      expect.fail("담보금이 없는 마켓에서 출금이 실패해야 함");
+      expect.fail("Withdrawal from market with no collateral should fail");
     } catch (e) {
       expect(e.toString()).to.include("No collateral to withdraw");
     }
   });
 
-  it("마감된 마켓에서 담보금을 출금할 수 있어야 합니다", async () => {
-    // 먼저 사용자가 토큰을 구매하여 담보금 추가
+  it("Should be able to withdraw collateral from closed market", async () => {
+    // First have user buy tokens to add collateral
     const binIndices = [0, 1];
     const amounts = [new BN(100_000_000_000), new BN(200_000_000_000)];
     const maxCollateral = new BN(350_000_000_000);
 
-    // 토큰 구매
+    // Buy tokens
     await env.program.methods
       .buyTokens(new BN(env.marketId), binIndices, amounts, maxCollateral)
       .accounts({
@@ -116,15 +116,15 @@ describe("Collateral Withdrawal", () => {
       .signers([env.user1])
       .rpc();
 
-    // 마켓 정보 확인하여 담보금이 저장되었는지 확인
+    // Verify market info to ensure collateral was stored
     const marketInfoBefore = await env.program.account.market.fetch(env.market);
     const collateralAmount = marketInfoBefore.collateralBalance;
     expect(collateralAmount.toString()).to.not.equal("0");
 
-    // 순차적으로 마켓 닫기
+    // Close markets sequentially
     await env.closeMarketsSequentially(env.marketId, 0);
 
-    // 관리자가 담보금 출금
+    // Admin withdraws collateral
     await env.program.methods
       .withdrawCollateral(new BN(env.marketId))
       .accounts({
@@ -134,8 +134,8 @@ describe("Collateral Withdrawal", () => {
       })
       .rpc();
 
-    // 마켓 정보 확인
+    // Verify market info
     const marketInfoAfter = await env.program.account.market.fetch(env.market);
-    expect(marketInfoAfter.collateralBalance.toString()).to.equal("0"); // 담보금 = 0
+    expect(marketInfoAfter.collateralBalance.toString()).to.equal("0"); // Collateral = 0
   });
 });

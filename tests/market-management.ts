@@ -11,24 +11,24 @@ describe("Market Management", () => {
   });
 
   beforeEach(async () => {
-    // 각 테스트마다 마켓 초기화
+    // Initialize market for each test
     await env.resetMarket();
   });
 
-  it("관리자가 마켓을 비활성화하고 다시 활성화할 수 있어야 합니다", async () => {
-    // 마켓 비활성화
+  it("Admin should be able to deactivate and reactivate the market", async () => {
+    // Deactivate market
     await env.program.methods
-      .activateMarket(new BN(env.marketId), false) // false = 비활성화
+      .activateMarket(new BN(env.marketId), false) // false = deactivate
       .accounts({
         owner: env.admin.publicKey,
       })
       .rpc();
 
-    // 마켓 정보 확인
+    // Check market info
     let marketInfo = await env.program.account.market.fetch(env.market);
     expect(marketInfo.active).to.be.false; // active = false
 
-    // 비활성화된 마켓에서 토큰 구매 시도
+    // Try to buy tokens in deactivated market
     const userPosition = await env.getUserPosition(env.user1, env.marketId);
 
     try {
@@ -47,24 +47,24 @@ describe("Market Management", () => {
         .signers([env.user1])
         .rpc();
 
-      expect.fail("비활성화된 마켓에서 토큰 구매가 실패해야 함");
+      expect.fail("Token purchase in deactivated market should fail");
     } catch (e) {
       expect(e.toString()).to.include("Market is not active");
     }
 
-    // 마켓 다시 활성화
+    // Reactivate market
     await env.program.methods
-      .activateMarket(new BN(env.marketId), true) // true = 활성화
+      .activateMarket(new BN(env.marketId), true) // true = activate
       .accounts({
         owner: env.admin.publicKey,
       })
       .rpc();
 
-    // 마켓 정보 확인
+    // Check market info
     marketInfo = await env.program.account.market.fetch(env.market);
     expect(marketInfo.active).to.be.true; // active = true
 
-    // 이제 토큰 구매가 가능해야 함
+    // Now token purchase should be possible
     await env.program.methods
       .buyTokens(
         new BN(env.marketId),
@@ -80,7 +80,7 @@ describe("Market Management", () => {
       .signers([env.user1])
       .rpc();
 
-    // 구매 확인
+    // Verify purchase
     const userPositionInfo = await env.program.account.userMarketPosition.fetch(
       userPosition
     );
@@ -88,8 +88,8 @@ describe("Market Management", () => {
     expect(userPositionInfo.bins[0].amount.toString()).to.equal("100000000000");
   });
 
-  it("이미 비활성화된 마켓을 다시 비활성화하는 것은 허용되어야 합니다(멱등성)", async () => {
-    // 첫 번째 비활성화
+  it("Deactivating already deactivated market should be allowed (idempotent)", async () => {
+    // First deactivation
     await env.program.methods
       .activateMarket(new BN(env.marketId), false)
       .accounts({
@@ -97,11 +97,11 @@ describe("Market Management", () => {
       })
       .rpc();
 
-    // 마켓 정보 확인
+    // Check market info
     let marketInfo = await env.program.account.market.fetch(env.market);
     expect(marketInfo.active).to.be.false;
 
-    // 두 번째 비활성화 (같은 명령 반복)
+    // Second deactivation (repeat same command)
     await env.program.methods
       .activateMarket(new BN(env.marketId), false)
       .accounts({
@@ -109,17 +109,17 @@ describe("Market Management", () => {
       })
       .rpc();
 
-    // 마켓 정보 다시 확인
+    // Check market info again
     marketInfo = await env.program.account.market.fetch(env.market);
-    expect(marketInfo.active).to.be.false; // 여전히 비활성화 상태
+    expect(marketInfo.active).to.be.false; // still deactivated
   });
 
-  it("이미 활성화된 마켓을 다시 활성화하는 것은 허용되어야 합니다(멱등성)", async () => {
-    // 마켓은 기본적으로 활성화 상태
+  it("Activating already activated market should be allowed (idempotent)", async () => {
+    // Market is activated by default
     let marketInfo = await env.program.account.market.fetch(env.market);
     expect(marketInfo.active).to.be.true;
 
-    // 활성화 명령 실행
+    // Execute activation command
     await env.program.methods
       .activateMarket(new BN(env.marketId), true)
       .accounts({
@@ -127,20 +127,20 @@ describe("Market Management", () => {
       })
       .rpc();
 
-    // 마켓 정보 다시 확인
+    // Check market info again
     marketInfo = await env.program.account.market.fetch(env.market);
-    expect(marketInfo.active).to.be.true; // 여전히 활성화 상태
+    expect(marketInfo.active).to.be.true; // still activated
   });
 
-  it("마감된 마켓은 활성화/비활성화할 수 없어야 합니다", async () => {
-    // 순차적으로 마켓 닫기
+  it("Closed market cannot be activated/deactivated", async () => {
+    // Close markets sequentially
     await env.closeMarketsSequentially(env.marketId, 0);
 
-    // 마감 확인
+    // Verify closing
     const marketInfo = await env.program.account.market.fetch(env.market);
     expect(marketInfo.closed).to.be.true;
 
-    // 비활성화 시도
+    // Try to deactivate
     try {
       await env.program.methods
         .activateMarket(new BN(env.marketId), false)
@@ -149,12 +149,12 @@ describe("Market Management", () => {
         })
         .rpc();
 
-      expect.fail("마감된 마켓을 비활성화하면 실패해야 함");
+      expect.fail("Deactivating closed market should fail");
     } catch (e) {
       expect(e.toString()).to.include("Market is closed");
     }
 
-    // 활성화 시도
+    // Try to activate
     try {
       await env.program.methods
         .activateMarket(new BN(env.marketId), true)
@@ -163,14 +163,14 @@ describe("Market Management", () => {
         })
         .rpc();
 
-      expect.fail("마감된 마켓을 활성화하면 실패해야 함");
+      expect.fail("Activating closed market should fail");
     } catch (e) {
       expect(e.toString()).to.include("Market is closed");
     }
   });
 
-  it("관리자가 아닌 사용자는 마켓 상태를 변경할 수 없어야 합니다", async () => {
-    // 일반 사용자가 비활성화 시도
+  it("Non-admin users cannot change market state", async () => {
+    // Regular user tries to deactivate
     try {
       await env.program.methods
         .activateMarket(new BN(env.marketId), false)
@@ -180,7 +180,7 @@ describe("Market Management", () => {
         .signers([env.user1])
         .rpc();
 
-      expect.fail("관리자가 아닌 사용자가 마켓 상태를 변경하면 실패해야 함");
+      expect.fail("Non-admin user changing market state should fail");
     } catch (e) {
       expect(e.toString()).to.include("Owner only function");
     }

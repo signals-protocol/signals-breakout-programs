@@ -42,7 +42,7 @@ export interface TestEnv {
     user4: anchor.web3.PublicKey;
     user5: anchor.web3.PublicKey;
   };
-  // 새로운 기능: 시장 리셋 및 효율적인 테스트 환경 관리
+  // New feature: Market reset and efficient test environment management
   resetMarket: () => Promise<void>;
   createNewMarket: (params?: {
     tickSpacing?: number;
@@ -61,30 +61,26 @@ export interface TestEnv {
 }
 
 /**
- * 전체 테스트 환경 구성 - 처음 한 번만 호출하는 것이 효율적
+ * Complete test environment setup - efficient to call only once
  */
 export async function setupTestEnvironment(): Promise<TestEnv> {
-  console.log("🔄 전체 테스트 환경 구성 시작...");
-
   // Configure the client to use the local cluster
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
   const program = anchor.workspace.RangeBetProgram as Program<RangeBetProgram>;
 
-  // 관리자(프로그램 소유자) 키페어
+  // Admin (program owner) keypair
   const admin = provider.wallet;
 
-  // 테스트 유저 생성
+  // Create test users
   const user1 = Keypair.generate();
   const user2 = Keypair.generate();
   const user3 = Keypair.generate();
   const user4 = Keypair.generate();
   const user5 = Keypair.generate();
 
-  console.log("💰 테스트 유저에게 SOL 에어드롭 중...");
-
-  // 테스트 유저에게 SOL 에어드롭 (여유있게 10 SOL)
+  // Airdrop SOL to test users (generous 10 SOL)
   for (const user of [user1, user2, user3, user4, user5]) {
     const airdropSig = await provider.connection.requestAirdrop(
       user.publicKey,
@@ -93,32 +89,27 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     await provider.connection.confirmTransaction(airdropSig);
   }
 
-  // 프로그램 상태 계정
+  // Program state account
   const [programState, programStateBump] =
     await anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("range-bet-state")],
       program.programId
     );
 
-  // 프로그램 초기화 - 아직 초기화되지 않았을 경우
+  // Initialize program - if not already initialized
   try {
     await program.account.programState.fetch(programState);
-    console.log("✅ 프로그램 상태 이미 초기화됨");
   } catch (e) {
-    // 프로그램 상태가 없으면 초기화
-    console.log("🔨 프로그램 상태 초기화 중...");
+    // Initialize program state if it doesn't exist
     await program.methods
       .initializeProgram()
       .accounts({
         initializer: admin.publicKey,
       })
       .rpc();
-    console.log("✅ 프로그램 상태 초기화 완료");
   }
 
-  console.log("💲 담보 토큰 Mint 생성 중...");
-
-  // 담보 토큰 Mint 생성
+  // Create collateral token Mint
   const collateralMint = await createMint(
     provider.connection,
     admin.payer,
@@ -127,9 +118,7 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     9 // 9 decimals
   );
 
-  console.log("💳 각 사용자의 토큰 계정(ATA) 생성 중...");
-
-  // 각 사용자의 토큰 계정(ATA) 생성
+  // Create token accounts (ATA) for each user
   const adminTokenAccount = await createAssociatedTokenAccount(
     provider.connection,
     admin.payer,
@@ -172,10 +161,8 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     user5.publicKey
   );
 
-  console.log("💵 각 사용자에게 토큰 민팅 중...");
-
-  // 각 사용자에게 토큰 민팅
-  const mintAmount = 10000_000_000_000; // 10,000 tokens (넉넉하게)
+  // Mint tokens to each user
+  const mintAmount = 10000_000_000_000; // 10,000 tokens (generous amount)
 
   await mintTo(
     provider.connection,
@@ -231,13 +218,13 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     mintAmount
   );
 
-  // 마켓 생성에 필요한 기본값 정의
+  // Market creation required basic values
   const tickSpacing = 60;
   const minTick = -360;
   const maxTick = 360;
-  const closeTime = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60; // 일주일 후
+  const closeTime = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60; // 1 week later
 
-  // 첫 번째 마켓 ID (0)에 대한 vault authority PDA 계산
+  // Calculate vault authority PDA for the first market ID (0)
   let marketId = 0;
   const [vaultAuthority, vaultAuthorityBump] =
     await anchor.web3.PublicKey.findProgramAddressSync(
@@ -245,37 +232,33 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
       program.programId
     );
 
-  console.log("🏦 Vault Authority PDA 계산 완료:", vaultAuthority.toString());
-
-  // PDA가 소유자인 토큰 계정을 생성 (관리자가 지불)
-  // 여기서는 계정만 생성하고, 자금은 사용자가 buyTokens를 통해 채움
+  // Create token account owned by the PDA (admin pays)
+  // Here, only the account is created, and funds are filled by the user through buyTokens
   const vault = await createAccount(
     provider.connection,
     admin.payer,
     collateralMint,
-    vaultAuthority, // PDA가 소유자
-    Keypair.generate() // 새 계정 키페어 생성
+    vaultAuthority, // PDA is owner
+    Keypair.generate() // Create new account keypair
   );
 
-  console.log("🏦 Vault 계정 설정 완료:", vault.toString());
-
-  // 마켓 계정 주소 (PDA) 계산
+  // Market account address (PDA) calculation
   const [market, marketBump] =
     await anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("market"), new BN(marketId).toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
-  // 마켓 생성 (최초 한 번)
+  // Market creation (first time only)
   async function createMarketIfNeeded() {
     try {
-      // 이미 마켓이 있는지 확인
+      // Check if market already exists
       await program.account.market.fetch(market);
-      console.log("✅ 마켓 ID", marketId, "이미 존재합니다.");
+      console.log("✅ Market ID", marketId, "already exists.");
       return false;
     } catch (e) {
-      // 마켓이 없으면 생성
-      console.log("🔨 마켓 ID", marketId, "생성 중...");
+      // Create market if it doesn't exist
+      console.log("🔨 Creating Market ID", marketId, "...");
       await program.methods
         .createMarket(
           tickSpacing,
@@ -288,14 +271,14 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
           collateralMint: collateralMint,
         })
         .rpc();
-      console.log("✅ 마켓 ID", marketId, "생성 완료!");
+      console.log("✅ Market ID", marketId, "created!");
       return true;
     }
   }
 
   await createMarketIfNeeded();
 
-  // 유저 포지션 계정 주소 (PDA) 계산
+  // User position account address (PDA) calculation
   async function getUserPosition(user: Keypair, marketId: number) {
     const [userPosition, userPositionBump] =
       await anchor.web3.PublicKey.findProgramAddressSync(
@@ -310,12 +293,12 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     return userPosition;
   }
 
-  // 마켓 리셋 함수 (새로운 마켓을 생성하여 깨끗한 테스트 환경 제공)
+  // Market reset function (create new market to provide clean test environment)
   async function resetMarketInternal() {
     try {
-      // 기존 마켓을 닫지 않고 새 마켓을 생성
-      // 이 방식은 프로그램의 마켓 종료 순서 제약을 우회합니다
-      console.log("🔄 새 테스트 마켓 생성 중...");
+      // Create new market without closing the existing one
+      // This approach bypasses the program's market closing order constraint
+      console.log("🔄 Creating new test market...");
       const {
         market: newMarket,
         marketId: newMarketId,
@@ -324,43 +307,43 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
         vaultAuthorityBump: newVaultAuthorityBump,
       } = await createNewMarket();
 
-      // 반환할 객체에 설정할 수 있도록 새 값 저장
+      // Store new values for the object to be returned
       updatedMarket = newMarket;
       updatedMarketId = newMarketId;
       updatedVault = newVault;
       updatedVaultAuthority = newVaultAuthority;
       updatedVaultAuthorityBump = newVaultAuthorityBump;
-      console.log("✅ 새 마켓 ID", newMarketId, "생성 완료 (테스트용)");
+      console.log("✅ New market ID", newMarketId, "created (for testing)");
     } catch (e) {
-      console.log("⚠️ 새 마켓 생성 중 오류 발생:", e.message);
+      console.log("⚠️ Error occurred during new market creation:", e.message);
     }
   }
 
-  // 마켓 업데이트를 위한 임시 변수
+  // Temporary variables for market update
   let updatedMarket = market;
   let updatedMarketId = marketId;
   let updatedVault = vault;
   let updatedVaultAuthority = vaultAuthority;
   let updatedVaultAuthorityBump = vaultAuthorityBump;
 
-  // 새 마켓 생성 함수
+  // New market creation function
   async function createNewMarket(params?: {
     tickSpacing?: number;
     minTick?: number;
     maxTick?: number;
     closeTime?: number;
   }) {
-    // 프로그램 상태에서 현재 마켓 카운트 가져오기
+    // Get current market count from program state
     const state = await program.account.programState.fetch(programState);
     const newMarketId = state.marketCount.toNumber();
 
-    // 새 마켓 계정 주소 계산
+    // Calculate new market account address
     const [newMarket] = await anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("market"), new BN(newMarketId).toArrayLike(Buffer, "le", 8)],
       program.programId
     );
 
-    // 새 마켓에 대한 vault authority 계산
+    // Calculate vault authority for new market
     const [newVaultAuthority, newVaultAuthorityBump] =
       await anchor.web3.PublicKey.findProgramAddressSync(
         [
@@ -370,7 +353,7 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
         program.programId
       );
 
-    // 새 마켓용 토큰 vault 생성
+    // Create token vault for new market
     const newVault = await createAccount(
       provider.connection,
       admin.payer,
@@ -380,12 +363,12 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     );
 
     console.log(
-      `🏦 새 마켓 ID ${newMarketId}의 Vault 계정 설정:`,
+      `🏦 Setting Vault account for new market ID ${newMarketId}:`,
       newVault.toString()
     );
 
-    // 새 마켓 생성
-    console.log("🔨 새 마켓 ID", newMarketId, "생성 중...");
+    // Create new market
+    console.log("🔨 Creating new market ID", newMarketId, "...");
     await program.methods
       .createMarket(
         params?.tickSpacing ?? tickSpacing,
@@ -398,9 +381,9 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
         collateralMint: collateralMint,
       })
       .rpc();
-    console.log("✅ 새 마켓 ID", newMarketId, "생성 완료!");
+    console.log("✅ New market ID", newMarketId, "created!");
 
-    // 업데이트된 값들 저장
+    // Store updated values
     updatedVault = newVault;
     updatedVaultAuthority = newVaultAuthority;
     updatedVaultAuthorityBump = newVaultAuthorityBump;
@@ -414,9 +397,9 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     };
   }
 
-  // 토큰 보충 함수
+  // Token replenishment function
   async function replenishTokens(user: Keypair, amount = mintAmount) {
-    // 토큰 계정 찾기
+    // Find token account
     let tokenAccount;
     if (user.publicKey.equals(admin.publicKey)) {
       tokenAccount = adminTokenAccount;
@@ -431,10 +414,10 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     } else if (user.publicKey.equals(user5.publicKey)) {
       tokenAccount = user5TokenAccount;
     } else {
-      throw new Error("알 수 없는 사용자입니다");
+      throw new Error("Unknown user");
     }
 
-    // 토큰 민팅
+    // Mint tokens
     await mintTo(
       provider.connection,
       admin.payer,
@@ -445,9 +428,9 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     );
   }
 
-  console.log("🎉 전체 테스트 환경 구성 완료!");
+  console.log("🎉 Complete test environment setup!");
 
-  // 테스트 환경 객체 구성
+  // Test environment object configuration
   const testEnv: TestEnv = {
     provider,
     program,
@@ -479,7 +462,7 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
     },
     resetMarket: async () => {
       await resetMarketInternal();
-      // resetMarket 내에서 업데이트한 값으로 객체 속성 갱신
+      // Update object properties in resetMarket
       testEnv.market = updatedMarket;
       testEnv.marketId = updatedMarketId;
       testEnv.vault = updatedVault;
@@ -492,39 +475,38 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
       targetMarketId: number,
       winningBin: number = 0
     ) => {
-      // 프로그램 상태 조회하여 last_closed_market 값 확인
+      // Check program state for last_closed_market value
       const state = await program.account.programState.fetch(programState);
       let lastClosed = state.lastClosedMarket
         ? state.lastClosedMarket.toNumber()
         : -1;
 
-      // 마켓 ID가 순차적으로 닫혀야 하므로
-      // last_closed_market+1부터 target 마켓까지 순서대로 닫기
+      // Markets must close sequentially, so close from last_closed_market+1 to target market
       for (let id = lastClosed + 1; id <= targetMarketId; id++) {
         try {
-          // 마켓 계정 주소 계산
+          // Calculate market account address
           const [marketToClose] =
             await anchor.web3.PublicKey.findProgramAddressSync(
               [Buffer.from("market"), new BN(id).toArrayLike(Buffer, "le", 8)],
               program.programId
             );
 
-          console.log(`마켓 ID ${id} 닫는 중...`);
+          console.log(`Closing market ID ${id}...`);
 
-          // 마켓 정보 확인
+          // Check market information
           try {
             const marketInfo = await program.account.market.fetch(
               marketToClose
             );
 
-            // 이미 닫힌 마켓은 건너뛰기
+            // Skip already closed markets
             if (marketInfo.closed) {
-              console.log(`마켓 ID ${id}는 이미 닫혀 있습니다.`);
+              console.log(`Market ID ${id} is already closed.`);
               continue;
             }
 
-            // 마켓 닫기
-            const closeBin = id === targetMarketId ? winningBin : 0; // 타겟 마켓만 지정된 winning bin으로 설정
+            // Close market
+            const closeBin = id === targetMarketId ? winningBin : 0; // Only target market is specified with winning bin
             await program.methods
               .closeMarket(new BN(id), closeBin)
               .accounts({
@@ -532,15 +514,15 @@ export async function setupTestEnvironment(): Promise<TestEnv> {
               })
               .rpc();
 
-            console.log(`마켓 ID ${id} 성공적으로 닫힘.`);
+            console.log(`Market ID ${id} closed successfully.`);
           } catch (e) {
-            // 마켓이 존재하지 않으면 warning 만 표시하고 계속 진행
+            // If market doesn't exist, show warning and continue
             console.log(
-              `마켓 ID ${id}가 존재하지 않거나 처리 중 오류 발생: ${e.message}`
+              `Market ID ${id} doesn't exist or error occurred during processing: ${e.message}`
             );
           }
         } catch (e) {
-          console.error(`마켓 ID ${id} 닫기 실패: ${e.message}`);
+          console.error(`Failed to close market ID ${id}: ${e.message}`);
           throw e;
         }
       }
