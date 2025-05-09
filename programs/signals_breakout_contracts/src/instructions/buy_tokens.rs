@@ -10,7 +10,7 @@ pub struct BuyTokens<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     
-    /// 마켓 계정
+    /// Market account
     #[account(
         mut,
         seeds = [b"market", &market_id.to_le_bytes()],
@@ -20,21 +20,21 @@ pub struct BuyTokens<'info> {
     )]
     pub market: Account<'info, Market>,
     
-    /// 유저 포지션
+    /// User position
     #[account(
         init_if_needed,
         payer = user,
-        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // 기본 100개 Bin에 대한 공간 예약
+        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // Reserve space for 100 bins
         seeds = [b"pos", user.key().as_ref(), &market_id.to_le_bytes()],
         bump
     )]
     pub user_position: Account<'info, UserMarketPosition>,
     
-    /// 유저 토큰 계정
+    /// User token account
     #[account(mut)]
     pub user_token_account: Account<'info, TokenAccount>,
     
-    /// 마켓 Vault 계정
+    /// Market Vault account
     #[account(
         mut,
         constraint = vault.mint == user_token_account.mint
@@ -53,17 +53,17 @@ pub fn buy_tokens(
     amounts: Vec<u64>,
     max_collateral: u64,
 ) -> Result<()> {
-    // 유효성 검사
+    // Validation
     require!(bin_indices.len() == amounts.len(), RangeBetError::ArrayLengthMismatch);
     require!(bin_indices.len() > 0, RangeBetError::NoTokensToBuy);
     
     let market = &mut ctx.accounts.market;
     let user_position = &mut ctx.accounts.user_position;
     
-    // 초기화가 필요한 경우
+    // Initialize if needed
     if user_position.owner == Pubkey::default() {
         user_position.owner = ctx.accounts.user.key();
-        // market_id를 매개변수에서 직접 사용
+        // Use market_id directly from parameters
         user_position.market_id = market_id;
         user_position.bins = Vec::new();
     }
@@ -71,30 +71,30 @@ pub fn buy_tokens(
     let mut t_current = market.t_total;
     let mut total_cost: u64 = 0;
     
-    // 각 Bin에 대해 처리
+    // Process each bin
     for i in 0..bin_indices.len() {
         let index = bin_indices[i];
         let amount = amounts[i];
         
-        // 양이 0이면 건너뜀
+        // Skip if amount is 0
         if amount == 0 {
             continue;
         }
         
-        // 배열 인덱스 범위 확인
+        // Check array index range
         require!(index < market.bins.len() as u16, RangeBetError::BinIndexOutOfRange);
         
-        // 마켓에서 해당 Bin의 양 가져오기
+        // Get quantity from market bin
         let bin_q = market.bins[index as usize];
         
-        // 마켓 Bin 수량 업데이트
+        // Update market bin quantity
         market.bins[index as usize] += amount;
         
-        // 비용 계산
+        // Calculate cost
         let cost = RangeBetMath::calculate_cost(amount, bin_q, t_current)?;
         total_cost = total_cost.checked_add(cost).ok_or(error!(RangeBetError::MathOverflow))?;
         
-        // 사용자 포지션에 추가
+        // Add to user position
         let mut user_bin_found = false;
         
         for bin_bal in &mut user_position.bins {
@@ -105,7 +105,7 @@ pub fn buy_tokens(
             }
         }
         
-        // 사용자 Bin이 없으면 새로 생성
+        // Create new bin if not found in user position
         if !user_bin_found {
             user_position.bins.push(BinBal {
                 index,
@@ -113,14 +113,14 @@ pub fn buy_tokens(
             });
         }
         
-        // T 업데이트
+        // Update T
         t_current += amount;
     }
     
-    // 비용이 최대 담보를 초과하지 않는지 확인
+    // Check if cost exceeds maximum collateral
     require!(total_cost <= max_collateral, RangeBetError::CostExceedsMaxCollateral);
     
-    // 토큰 전송 
+    // Transfer tokens
     let cpi_accounts = Transfer {
         from: ctx.accounts.user_token_account.to_account_info(),
         to: ctx.accounts.vault.to_account_info(),
@@ -134,19 +134,19 @@ pub fn buy_tokens(
     
     token::transfer(cpi_ctx, total_cost)?;
     
-    // 마켓 상태 업데이트
+    // Update market state
     market.t_total = t_current;
     market.collateral_balance = market.collateral_balance.checked_add(total_cost)
         .ok_or(error!(RangeBetError::MathOverflow))?;
     
-    // 이벤트 발생
+    // Emit event
     emit!(TokensBought {
         market_id: user_position.market_id,
         buyer: ctx.accounts.user.key(),
         total_cost,
     });
     
-    msg!("토큰 구매 완료: 시장 ID = {}, 구매자 = {}, 비용 = {}", 
+    msg!("Token purchase complete: Market ID = {}, Buyer = {}, Cost = {}", 
         user_position.market_id, 
         ctx.accounts.user.key(), 
         total_cost

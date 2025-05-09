@@ -30,42 +30,42 @@ pub fn close_market(
     market_id: u64,
     winning_bin: u16
 ) -> Result<()> {
-    // 다음 닫을 마켓 ID 계산
+    // Calculate next market ID to close
     let expected_next_id = match ctx.accounts.program_state.last_closed_market {
         Some(last_id) => last_id + 1,
-        None => 0 // 아직 닫힌 마켓이 없으면 0번 마켓부터 시작
+        None => 0 // If no closed markets exist, start from market 0
     };
     
-    // 전달된 ID가 다음 닫아야 할 마켓 ID와 일치하는지 검증
+    // Verify if the passed ID matches the next market ID to close
     require!(
         market_id == expected_next_id, 
         RangeBetError::IncorrectMarketOrderForClosing
     );
     
-    // 가변 참조 획득
+    // Get mutable references
     let market = &mut ctx.accounts.market;
     let program_state = &mut ctx.accounts.program_state;
         
-    // winning_bin 인덱스가 bins 배열 범위 내에 있는지 확인
+    // Check if the winning bin index is within the bins array range
     require!(
         (winning_bin as usize) < market.bins.len(),
         RangeBetError::BinIndexOutOfRange
     );
     
-    // 마켓 상태 업데이트
+    // Update market state
     market.closed = true;
     market.winning_bin = Some(winning_bin);
     
-    // 프로그램 상태 업데이트 - 마지막으로 닫힌 마켓 ID 갱신
+    // Update program state - last closed market ID
     program_state.last_closed_market = Some(market_id);
     
-    // 이벤트 발생
+    // Emit event
     emit!(MarketClosed {
         market_id,
         winning_bin,
     });
     
-    msg!("마켓 마감 완료: ID = {}, 승리 Bin 인덱스 = {}", market_id, winning_bin);
+    msg!("Market closed: ID = {}, Winning bin index = {}", market_id, winning_bin);
     
     Ok(())
 } 

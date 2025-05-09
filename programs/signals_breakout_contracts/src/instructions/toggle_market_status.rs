@@ -25,14 +25,14 @@ pub struct ToggleMarketStatus<'info> {
 }
 
 pub fn toggle_market_status(ctx: Context<ToggleMarketStatus>, market_id: u64, active: bool) -> Result<()> {
-    // 마켓 활성/비활성화 상태 토글
+    // Toggle market active/inactive status
     let market = &mut ctx.accounts.market;
     market.active = active;
 
     if active {
-        msg!("마켓 활성화: ID = {}", market_id);
+        msg!("Market activated: ID = {}", market_id);
     } else {
-        msg!("마켓 비활성화: ID = {}", market_id);
+        msg!("Market deactivated: ID = {}", market_id);
     }
     
     Ok(())

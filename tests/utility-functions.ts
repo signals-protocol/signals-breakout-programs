@@ -354,9 +354,6 @@ describe("Utility Functions", () => {
         })
         .view();
 
-      console.log("Purchase cost:", buyCost.toString());
-      console.log("Sell revenue:", sellRevenue.toString());
-
       // Cost and revenue should be the same in q=T case
       expect(sellRevenue.toString()).to.equal(buyCost.toString());
     });
@@ -483,8 +480,6 @@ describe("Utility Functions", () => {
         .view();
 
       // In q=0, T>0 state, quantity should be greater than cost
-      console.log("amount", amount.toString());
-      console.log("cost", cost.toString());
       expect(new BN(amount).gt(cost)).to.be.true;
     });
 

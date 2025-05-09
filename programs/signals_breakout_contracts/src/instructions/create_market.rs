@@ -20,20 +20,20 @@ pub struct CreateMarket<'info> {
     )]
     pub program_state: Account<'info, ProgramState>,
     
-    /// 생성할 마켓 정보를 저장할 계정
+    /// Account to store market information to be created
     #[account(
         init,
         payer = owner,
         seeds = [b"market", program_state.market_count.to_le_bytes().as_ref()],
         bump,
-        space = 8 + std::mem::size_of::<Market>() // 최소 크기만 할당 (bins 없이)
+        space = 8 + std::mem::size_of::<Market>() // Minimum size (no bins)
     )]
     pub market: Account<'info, Market>,
     
-    /// 담보 토큰의 Mint
+    /// Collateral token Mint
     pub collateral_mint: Account<'info, Mint>,
     
-    /// 마켓의 Vault 계정 (담보를 보관할 ATA)
+    /// Market's Vault account (stores collateral)
     #[account(
         init,
         payer = owner,
@@ -42,12 +42,12 @@ pub struct CreateMarket<'info> {
     )]
     pub vault: Account<'info, TokenAccount>,
     
-    /// Vault 권한 PDA (프로그램이 서명하는 PDA)
+    /// Vault authority PDA (program-signing PDA)
     #[account(
         seeds = [b"vault", program_state.market_count.to_le_bytes().as_ref()],
         bump
     )]
-    /// CHECK: 실제 계정이 아니라 PDA로 사용됨
+    /// CHECK: Not an actual account, used as PDA
     pub vault_authority: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
@@ -63,29 +63,29 @@ pub fn create_market(
     max_tick: i64,
     close_ts: i64,
 ) -> Result<()> {
-    // 1. 파라미터 검증
+    // 1. Parameter validation
     require!(tick_spacing > 0, RangeBetError::InvalidTickSpacing);
     require!(min_tick % tick_spacing as i64 == 0, RangeBetError::MinTickNotMultiple);
     require!(max_tick % tick_spacing as i64 == 0, RangeBetError::MaxTickNotMultiple);
     require!(min_tick < max_tick, RangeBetError::MinTickGreaterThanMax);
 
-    // 2. bins 길이 계산
+    // 2. Calculate bins length
     let bin_count = ((max_tick - min_tick) / tick_spacing as i64 + 1) as usize;
     
-    // 3. 계정 크기 증가 및 rent 계산
-    let additional_space = 16 * bin_count;  // Vec 메타데이터 + u64 데이터
+    // 3. Increase account size and calculate rent
+    let additional_space = 16 * bin_count;  // Vec metadata + u64 data
     let new_size = 8 + std::mem::size_of::<Market>() + additional_space;
     
-    // 필요한 lamports 계산
+    // Calculate needed lamports
     let rent = Rent::get()?;
     let needed_lamports = rent.minimum_balance(new_size);
     let market_ai = ctx.accounts.market.to_account_info();
     
-    // 현재 계정의 lamports가 충분하지 않으면 추가 전송
+    // If current account's lamports are insufficient, transfer additional lamports
     if needed_lamports > market_ai.lamports() {
         let diff = needed_lamports - market_ai.lamports();
         
-        // owner → market 로 lamports 전송
+        // Transfer lamports from owner to market
         system_program::transfer(
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
@@ -98,12 +98,12 @@ pub fn create_market(
         )?;
     }
     
-    // realloc 수행
+    // Perform realloc
     market_ai.realloc(new_size, false)?;
 
     let market_id = ctx.accounts.program_state.market_count;
     
-    // 4. 마켓 초기화
+    // 4. Initialize market
     let market = &mut ctx.accounts.market;
     market.active = true;
     market.closed = false;
@@ -112,17 +112,17 @@ pub fn create_market(
     market.max_tick = max_tick;
     market.t_total = 0;
     market.collateral_balance = 0;
-    market.winning_bin = None; // 아직 결정되지 않음
+    market.winning_bin = None; // Not determined yet
     market.open_ts = Clock::get()?.unix_timestamp;
     market.close_ts = close_ts;
     
-    // bins 배열을 생성하고 0으로 초기화
+    // Create and initialize bins array
     market.bins = vec![0; bin_count];
     
-    // 5. 프로그램 상태 업데이트
+    // 5. Update program state
     ctx.accounts.program_state.market_count += 1;
     
-    // 이벤트 발생
+    // Emit event
     emit!(MarketCreated {
         market_id,
         tick_spacing,
@@ -130,7 +130,7 @@ pub fn create_market(
         max_tick,
     });
     
-    msg!("마켓 생성 완료: ID = {}", market_id);
+    msg!("Market created: ID = {}", market_id);
     
     Ok(())
 } 

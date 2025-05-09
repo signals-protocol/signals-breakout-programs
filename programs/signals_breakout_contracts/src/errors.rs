@@ -26,19 +26,19 @@ pub enum RangeBetError {
     #[msg("Array length mismatch")]
     ArrayLengthMismatch,
     
-    #[msg("최소 하나의 bin에 베팅해야 합니다")]
+    #[msg("Must bet on at least one bin")]
     NoTokensToBuy,
     
-    #[msg("비용이 최대 담보를 초과합니다")]
+    #[msg("Cost exceeds maximum collateral")]
     CostExceedsMaxCollateral,
     
     #[msg("Market is not closed")]
     MarketIsNotClosed,
     
-    #[msg("승리 bin이 아닙니다")]
+    #[msg("Not a winning bin")]
     NotWinningBin,
     
-    #[msg("청구할 토큰이 없습니다")]
+    #[msg("No tokens to claim")]
     NoTokensToClaim,
     
     #[msg("No collateral to withdraw")]
@@ -47,28 +47,28 @@ pub enum RangeBetError {
     #[msg("Insufficient balance")]
     InsufficientTokensToTransfer,
     
-    #[msg("수학 연산에서 오버플로우 발생")]
+    #[msg("Math overflow occurred")]
     MathOverflow,
     
-    #[msg("수학 연산에서 언더플로우 발생")]
+    #[msg("Math underflow occurred")]
     MathUnderflow,
     
     #[msg("Cannot sell more tokens than available in bin")]
     CannotSellMoreThanBin,
     
-    #[msg("전체 공급량보다 더 많은 토큰을 판매할 수 없습니다")]
+    #[msg("Cannot sell more tokens than total supply")]
     CannotSellMoreThanSupply,
     
-    #[msg("시장 전체 공급량과 같은 양을 판매할 수 없습니다")]
+    #[msg("Cannot sell entire market supply")]
     CannotSellEntireSupply,
     
-    #[msg("판매 계산 중 언더플로우 발생")]
+    #[msg("Sell calculation underflow")]
     SellCalculationUnderflow,
     
     #[msg("Owner only function")]
     OwnerOnly,
     
-    #[msg("올바른 순서로 마켓을 닫아야 합니다")]
+    #[msg("Markets must be closed in sequential order")]
     IncorrectMarketOrderForClosing,
     
     #[msg("Cannot transfer to self")]
@@ -77,6 +77,6 @@ pub enum RangeBetError {
     #[msg("Cannot sell tokens from empty bin")]
     CannotSellFromEmptyBin,
     
-    #[msg("Bin 토큰 수량이 전체 토큰 수량보다 클 수 없습니다")]
+    #[msg("Bin token quantity cannot be greater than total token quantity")]
     InvalidBinState,
 } 

@@ -37,7 +37,7 @@ pub struct CalculateBinSellCost<'info> {
     pub market: Account<'info, Market>,
 }
 
-/// 특정 Bin에 토큰을 구매하는 비용을 계산하는 Instruction(view)
+/// Instruction (view) to calculate the cost of buying tokens in a specific bin
 pub fn calculate_bin_cost(
     ctx: Context<CalculateBinCost>,
     index: u16,
@@ -45,22 +45,22 @@ pub fn calculate_bin_cost(
 ) -> Result<u64> {
     let market = &ctx.accounts.market;
     
-    // 배열 인덱스 범위 확인
+    // Check array index range
     require!(
         (index as usize) < market.bins.len(), 
         RangeBetError::BinIndexOutOfRange
     );
     
-    // 선택한 Bin의 현재 q 값 가져오기
+    // Get current q value for the selected bin
     let bin_q = market.bins[index as usize];
     
-    // 코스트 계산
+    // Calculate cost
     let cost = RangeBetMath::calculate_cost(amount, bin_q, market.t_total)?;
     
     Ok(cost)
 }
 
-/// 특정 비용으로 구매 가능한 토큰 수량을 계산하는 Instruction(view)
+/// Instruction (view) to calculate the amount of tokens purchasable for a specific cost
 pub fn calculate_x_for_bin(
     ctx: Context<CalculateXForBin>,
     index: u16,
@@ -68,22 +68,22 @@ pub fn calculate_x_for_bin(
 ) -> Result<u64> {
     let market = &ctx.accounts.market;
     
-    // 배열 인덱스 범위 확인
+    // Check array index range
     require!(
         (index as usize) < market.bins.len(), 
         RangeBetError::BinIndexOutOfRange
     );
     
-    // 선택한 Bin의 현재 q 값 가져오기
+    // Get current q value for the selected bin
     let bin_q = market.bins[index as usize];
     
-    // 수량 계산
+    // Calculate amount
     let amount = RangeBetMath::calculate_x_for_cost(cost, bin_q, market.t_total)?;
     
     Ok(amount)
 }
 
-/// 특정 Bin에서 토큰을 판매했을 때 얻는 수익을 계산하는 Instruction(view)
+/// Instruction (view) to calculate the revenue from selling tokens in a specific bin
 pub fn calculate_bin_sell_cost(
     ctx: Context<CalculateBinSellCost>,
     index: u16,
@@ -91,22 +91,22 @@ pub fn calculate_bin_sell_cost(
 ) -> Result<u64> {
     let market = &ctx.accounts.market;
     
-    // 배열 인덱스 범위 확인
+    // Check array index range
     require!(
         (index as usize) < market.bins.len(), 
         RangeBetError::BinIndexOutOfRange
     );
     
-    // 선택한 Bin의 현재 q 값 가져오기
+    // Get current q value for the selected bin
     let bin_q = market.bins[index as usize];
     
-    // 빈 마켓이거나 빈 bin인 경우 판매 불가
+    // Cannot sell if market is empty or bin is empty
     require!(bin_q > 0, RangeBetError::CannotSellFromEmptyBin);
     
-    // 판매 수량이 bin의 토큰 수량보다 많으면 에러
+    // Error if sell amount is greater than bin token amount
     require!(amount <= bin_q, RangeBetError::CannotSellMoreThanBin);
     
-    // 판매 수익 계산
+    // Calculate sell revenue
     let sell_revenue = RangeBetMath::calculate_sell_cost(amount, bin_q, market.t_total)?;
     
     Ok(sell_revenue)

@@ -33,12 +33,12 @@ pub struct ClaimReward<'info> {
     )]
     pub vault: Account<'info, TokenAccount>,
     
-    /// Vault 권한 PDA (프로그램이 서명하는 PDA)
+    /// Vault authority PDA (program signing PDA)
     #[account(
         seeds = [b"vault", &user_position.market_id.to_le_bytes()],
         bump
     )]
-    /// CHECK: 실제 계정이 아니라 PDA로 사용됨
+    /// CHECK: This is not an actual account but used as a PDA
     pub vault_authority: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
@@ -49,13 +49,13 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
     let market = &mut ctx.accounts.market;
     let user_position = &mut ctx.accounts.user_position;
 
-    // 시장이 닫혔는지 확인
+    // Check if market is closed
     require!(market.closed, RangeBetError::MarketIsNotClosed);
     
-    // 승리 Bin이 설정되었는지 확인
+    // Check if winning bin is set
     let winning_bin = market.winning_bin.ok_or(error!(RangeBetError::BinIndexOutOfRange))?;
     
-    // 승리 Bin에 베팅한 토큰을 찾음
+    // Find tokens bet on the winning bin
     let mut user_winning_amount = 0;
     let mut user_bin_index = None;
     
@@ -67,24 +67,24 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
         }
     }
     
-    // 청구할 토큰이 있는지 확인
-    require!(user_winning_amount > 0, RangeBetError::NoTokensToClaim);
+    // Check if there are tokens to claim from the winning bin
+    require!(user_winning_amount > 0, RangeBetError::NotWinningBin);
     
-    // 시장에서 승리 Bin의 총 토큰 수량 가져오기
+    // Get total token amount for the winning bin
     let total_winning_tokens = market.bins[winning_bin as usize];
     
-    // 보상 계산: (유저 토큰 수량 / 총 승리 토큰 수량) * 전체 담보 잔액
+    // Calculate reward: (user token amount / total winning tokens) * total collateral balance
     let reward_amount = (user_winning_amount as u128 * market.collateral_balance as u128) 
         / total_winning_tokens as u128;
     
-    // u64 범위 체크
+    // Check u64 range
     let reward_amount = if reward_amount > u64::MAX as u128 {
         u64::MAX
     } else {
         reward_amount as u64
     };
     
-    // 토큰 전송 (vault -> 유저)
+    // Transfer tokens (vault -> user)
     let vault_authority_bump = ctx.bumps.vault_authority;
     let seeds = &[
         b"vault" as &[u8], 
@@ -107,23 +107,23 @@ pub fn claim_reward(ctx: Context<ClaimReward>) -> Result<()> {
     
     token::transfer(cpi_ctx, reward_amount)?;
     
-    // 유저 포지션에서 소각 (0으로 설정)
+    // Burn from user position (set to 0)
     if let Some(index) = user_bin_index {
         user_position.bins[index].amount = 0;
     }
     
-    // 마켓 상태 업데이트
+    // Update market state
     market.collateral_balance = market.collateral_balance.checked_sub(reward_amount)
         .ok_or(error!(RangeBetError::MathUnderflow))?;
     
-    // 이벤트 발생
+    // Emit event
     emit!(RewardClaimed {
         market_id: user_position.market_id,
         claimer: ctx.accounts.user.key(),
         amount: reward_amount,
     });
     
-    msg!("보상 청구 완료: 시장 ID = {}, 청구자 = {}, 금액 = {}", 
+    msg!("Reward claimed: Market ID = {}, Claimer = {}, Amount = {}", 
         user_position.market_id, 
         ctx.accounts.user.key(), 
         reward_amount

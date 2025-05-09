@@ -30,12 +30,12 @@ pub struct WithdrawCollateral<'info> {
     #[account(mut)]
     pub vault: Account<'info, TokenAccount>,
     
-    /// Vault 권한 PDA (프로그램이 서명하는 PDA)
+    /// Vault authority PDA (program-signing PDA)
     #[account(
         seeds = [b"vault", &market_id.to_le_bytes()],
         bump
     )]
-    /// CHECK: 실제 계정이 아니라 PDA로 사용됨
+    /// CHECK: Not an actual account, used as PDA
     pub vault_authority: UncheckedAccount<'info>,
     
     pub token_program: Program<'info, Token>,
@@ -45,13 +45,13 @@ pub fn withdraw_collateral(
     ctx: Context<WithdrawCollateral>,
     market_id: u64,
 ) -> Result<()> {
-    // 인출할 수 있는 금액 (마켓의 담보 잔액)
+    // Amount to withdraw (market collateral balance)
     let amount = ctx.accounts.market.collateral_balance;
     
-    // 인출할 금액이 있는지 확인
+    // Check if there is an amount to withdraw
     require!(amount > 0, RangeBetError::NoCollateralToWithdraw);
     
-    // 토큰 전송 (vault -> 소유자)
+    // Transfer tokens (vault -> owner)
     let vault_authority_bump = ctx.bumps.vault_authority;
     let market_id_bytes = market_id.to_le_bytes();
     
@@ -61,7 +61,7 @@ pub fn withdraw_collateral(
         &[vault_authority_bump]
     ];
     
-    // signer seeds를 안정적으로 유지하기 위한 바인딩
+    // Bind signer seeds to ensure stability
     let signer_seeds = &[&seeds[..]];
     
     let cpi_accounts = Transfer {
@@ -78,17 +78,17 @@ pub fn withdraw_collateral(
     
     token::transfer(cpi_ctx, amount)?;
     
-    // 마켓의 담보 잔액을 0으로 설정
+    // Set market collateral balance to 0
     ctx.accounts.market.collateral_balance = 0;
     
-    // 이벤트 발생
+    // Emit event
     emit!(CollateralOut {
         to: ctx.accounts.owner.key(),
         amount,
     });
     
     msg!(
-        "담보 인출 완료: 대상 = {}, 금액 = {}", 
+        "Collateral withdrawn: target = {}, amount = {}", 
         ctx.accounts.owner.key(),
         amount
     );

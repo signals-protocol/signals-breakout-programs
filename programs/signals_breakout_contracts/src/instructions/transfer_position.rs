@@ -8,18 +8,18 @@ pub struct TransferPosition<'info> {
     #[account(mut)]
     pub from_user: Signer<'info>,
     
-    /// 포지션 양도할 대상
-    /// CHECK: 실제 사용자 계정 또는 PDA
+    /// Recipient of the position transfer
+    /// CHECK: Actual user account or PDA
     pub to_user: UncheckedAccount<'info>,
     
-    /// 마켓 정보
+    /// Market information
     #[account(
         seeds = [b"market", &market_id.to_le_bytes()],
         bump
     )]
     pub market: Account<'info, Market>,
     
-    /// 양도자 포지션
+    /// Sender's position
     #[account(
         mut,
         seeds = [b"pos", from_user.key().as_ref(), &market_id.to_le_bytes()],
@@ -28,11 +28,11 @@ pub struct TransferPosition<'info> {
     )]
     pub from_position: Account<'info, UserMarketPosition>,
     
-    /// 수신자 포지션 (존재하지 않으면 생성)
+    /// Recipient position (created if doesn't exist)
     #[account(
         init_if_needed,
         payer = from_user,
-        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // 기본 100개 Bin에 대한 공간 예약
+        space = 8 + std::mem::size_of::<UserMarketPosition>() + 16 * 100, // Reserve space for 100 bins
         seeds = [b"pos", to_user.key().as_ref(), &market_id.to_le_bytes()],
         bump,
     )]
@@ -43,40 +43,40 @@ pub struct TransferPosition<'info> {
 }
 
 pub fn transfer_position(ctx: Context<TransferPosition>, market_id: u64, bin_indices: Vec<u16>, amounts: Vec<u64>) -> Result<()> {
-    // 자기 자신에게 전송하는지 확인
+    // Check if transferring to self
     require!(
         ctx.accounts.from_user.key() != ctx.accounts.to_user.key(),
         RangeBetError::CannotTransferToSelf
     );
 
-    // Bin 및 금액 배열 길이 확인
+    // Verify bin and amount array lengths
     require!(bin_indices.len() == amounts.len(), RangeBetError::ArrayLengthMismatch);
     
-    // 최소 한 개 이상의 토큰을 전송하는지 확인
+    // Check if transferring at least one token
     let mut total_amount = 0;
     for amount in &amounts {
         total_amount += amount;
     }
     require!(total_amount > 0, RangeBetError::NoTokensToBuy);
     
-    // 초기화가 필요한 경우
+    // Initialize if needed
     if ctx.accounts.to_position.owner == Pubkey::default() {
         ctx.accounts.to_position.owner = ctx.accounts.to_user.key();
         ctx.accounts.to_position.market_id = market_id;
         ctx.accounts.to_position.bins = Vec::new();
     }
     
-    // 각 Bin에 대해 처리
+    // Process each bin
     for i in 0..bin_indices.len() {
         let index = bin_indices[i];
         let amount = amounts[i];
         
-        // 양이 0이면 건너뜀
+        // Skip if amount is 0
         if amount == 0 {
             continue;
         }
         
-        // 송신자 포지션에서 해당 bin 찾기 및 금액 검증
+        // Find bin in sender position and validate amount
         let mut from_bin_found = false;
         
         for bin_bal in &mut ctx.accounts.from_position.bins {
@@ -90,7 +90,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, market_id: u64, bin_ind
         
         require!(from_bin_found, RangeBetError::BinIndexOutOfRange);
         
-        // 수신자 포지션에 추가
+        // Add to recipient position
         let mut to_bin_found = false;
         
         for bin_bal in &mut ctx.accounts.to_position.bins {
@@ -101,7 +101,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, market_id: u64, bin_ind
             }
         }
         
-        // 수신자 Bin이 없으면 새로 생성
+        // Create new bin if not found in recipient position
         if !to_bin_found {
             ctx.accounts.to_position.bins.push(BinBal {
                 index,
@@ -110,7 +110,7 @@ pub fn transfer_position(ctx: Context<TransferPosition>, market_id: u64, bin_ind
         }
     }
     
-    msg!("포지션 양도 완료: {} -> {}", 
+    msg!("Position transfer complete: {} -> {}", 
         ctx.accounts.from_user.key(), 
         ctx.accounts.to_user.key()
     );

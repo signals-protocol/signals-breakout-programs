@@ -84,7 +84,7 @@ pub mod range_bet_program {
         instructions::transfer_position::transfer_position(ctx, market_id, bin_indices, amounts)
     }
 
-    // View 함수 (시뮬레이션용 인스트럭션)
+    // View functions (instructions for simulation)
     pub fn calculate_bin_cost(
         ctx: Context<CalculateBinCost>,
         _market_id: u64,
