@@ -6,16 +6,16 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-signals_breakout_contracts = "9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe"
+signals_breakout_contracts = "97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J"
 
 [programs.devnet]
-signals_breakout_contracts = "9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe"
+signals_breakout_contracts = "97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

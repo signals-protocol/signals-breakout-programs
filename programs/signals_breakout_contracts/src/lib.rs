@@ -1,7 +1,7 @@
 #![allow(unexpected_cfgs)]
 use anchor_lang::prelude::*;
 
-declare_id!("9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe");
+declare_id!("97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J");
 
 mod math;
 mod state;

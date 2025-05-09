@@ -8,14 +8,16 @@
     "test:local": "anchor test --skip-local-validator",
     "deploy": "anchor deploy",
     "deploy:devnet": "anchor deploy --provider.cluster devnet",
-    "upgrade:program": "anchor upgrade --program-id 9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe ./target/deploy/signals_breakout_contracts.so --provider.cluster devnet",
-    "verify": "anchor verify 9FTUsmsohGA7FUXiDbJEbP1BV9ifzukhEH3dAfiZxfpe --provider.cluster devnet",
+    "upgrade:program": "anchor upgrade --program-id 97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J ./target/deploy/signals_breakout_contracts.so --provider.cluster devnet",
+    "verify": "anchor verify 97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J --provider.cluster devnet",
     "start-validator": "solana-test-validator",
     "local-validator": "solana-test-validator --reset --quiet",
     "clean": "rm -rf ./target",
     "build:clean": "anchor clean && anchor build",
     "idl:generate": "anchor build && anchor idl parse -f ./target/idl/range_bet_program.json -o ./target/types/range_bet_program.ts",
-    "account": "anchor run account-fetch"
+    "account": "anchor run account-fetch",
+    "create-markets": "ts-node scripts/create-markets.ts",
+    "place-bets": "ts-node scripts/place-bets.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
