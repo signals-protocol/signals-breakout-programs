@@ -1,9 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { BN } from "bn.js";
 import { setupTestEnvironment, TestEnv } from "./setup";
-import { RangeBetProgram } from "../target/types/range_bet_program";
 
 describe("Token Operations", () => {
   let env: TestEnv;

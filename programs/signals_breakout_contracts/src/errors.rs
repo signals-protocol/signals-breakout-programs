@@ -76,4 +76,7 @@ pub enum RangeBetError {
     
     #[msg("Cannot sell tokens from empty bin")]
     CannotSellFromEmptyBin,
+    
+    #[msg("Bin 토큰 수량이 전체 토큰 수량보다 클 수 없습니다")]
+    InvalidBinState,
 } 

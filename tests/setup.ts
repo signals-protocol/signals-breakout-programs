@@ -1,17 +1,12 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { SystemProgram, Keypair, Connection } from "@solana/web3.js";
+import { Keypair, Connection } from "@solana/web3.js";
 import { RangeBetProgram } from "../target/types/range_bet_program";
 import { BN } from "bn.js";
 import {
-  TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
-  getAssociatedTokenAddress,
   createAssociatedTokenAccount,
   mintTo,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
   createAccount,
 } from "@solana/spl-token";
 
