@@ -28,8 +28,14 @@ Signals Breakout Contracts is a prediction market protocol operating on the Sola
    - Setting of market opening and closing times
 
 3. **User Position (UserMarketPosition)**:
+
    - Tracking of market positions by user
    - Management of token balances by bin
+
+4. **Math Core Library**:
+   - Separate crate for mathematical calculations
+   - Implements the core price formula and its derivatives
+   - Supports both on-chain (BPF) and WASM compilation targets
 
 ### Key Functions
 
@@ -216,6 +222,10 @@ The betting cost is calculated based on the following integral:
 - `x`: Amount of tokens to purchase
 
 This formula means that the betting cost adjusts according to the market's liquidity. The more popular an interval is, the higher the cost to bet on it.
+
+### Math Core
+
+The mathematical functions are implemented in a separate `math-core` crate that you can find in the `programs/signals_breakout_contracts/math-core` directory. This crate can be compiled both for on-chain use (BPF) and as a WASM module for client-side applications. For more details, see the [Math Core README](programs/signals_breakout_contracts/math-core/README.md).
 
 ## License
 

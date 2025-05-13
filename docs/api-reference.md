@@ -389,6 +389,102 @@ const sellCost = await program.methods
   .view();
 ```
 
+## Math Core API
+
+The mathematical functions are implemented in a separate `math-core` crate to allow reuse across different contexts. This crate provides functions for both on-chain and WASM (client-side) use.
+
+### Core Functions
+
+#### calculate_bin_buy_cost
+
+Calculates the cost to purchase tokens in a single bin.
+
+```rust
+pub fn calculate_bin_buy_cost(x: u64, q: u64, t: u64) -> Result<u64>
+```
+
+Parameters:
+
+- `x`: Amount of tokens to purchase
+- `q`: Current token quantity in the bin
+- `t`: Total token quantity in the market
+
+Returns:
+
+- `Result<u64>`: Cost of the purchase or an error
+
+#### calculate_bin_sell_cost
+
+Calculates the revenue from selling tokens in a single bin.
+
+```rust
+pub fn calculate_bin_sell_cost(x: u64, q: u64, t: u64) -> Result<u64>
+```
+
+Parameters:
+
+- `x`: Amount of tokens to sell
+- `q`: Current token quantity in the bin
+- `t`: Total token quantity in the market
+
+Returns:
+
+- `Result<u64>`: Revenue from the sale or an error
+
+#### calculate_multi_bins_buy_cost
+
+Calculates the total cost to purchase tokens across multiple bins.
+
+```rust
+pub fn calculate_multi_bins_buy_cost(x: u64, qs: &[u64], t: u64) -> Result<u64>
+```
+
+Parameters:
+
+- `x`: Amount of tokens to purchase for each bin
+- `qs`: Array of current token quantities in each bin
+- `t`: Total token quantity in the market
+
+Returns:
+
+- `Result<u64>`: Total cost of the purchase or an error
+
+#### calculate_multi_bins_sell_cost
+
+Calculates the revenue from selling tokens across multiple bins.
+
+```rust
+pub fn calculate_multi_bins_sell_cost(x: u64, qs: &[u64], t: u64) -> Result<u64>
+```
+
+Parameters:
+
+- `x`: Amount of tokens to sell for each bin
+- `qs`: Array of current token quantities in each bin
+- `t`: Total token quantity in the market
+
+Returns:
+
+- `Result<u64>`: Total revenue from the sale or an error
+
+#### calculate_x_for_multi_bins
+
+Calculates the maximum token quantity that can be purchased with a given budget across multiple bins.
+
+```rust
+pub fn calculate_x_for_multi_bins(budget: u64, qs: &[u64], t: u64) -> Result<u64>
+```
+
+Parameters:
+
+- `budget`: Maximum cost willing to pay
+- `qs`: Array of current token quantities in each bin
+- `t`: Total token quantity in the market
+
+Returns:
+
+- `Result<u64>`: Maximum purchasable token quantity or an error
+
 ## Events
 
 ### MarketCreated

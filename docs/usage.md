@@ -300,6 +300,69 @@ const tokens = await program.methods
 console.log(`Tokens purchasable with ${cost} cost: ${tokens.toString()}`);
 ```
 
+## Using the Math Core Library
+
+The mathematical functions for calculating betting costs are implemented in a separate crate called `math-core`. This library can be used in two ways:
+
+### For On-chain Program
+
+The on-chain program uses the BPF version of the math-core library, which is automatically included during the build process.
+
+### For Client Applications (WASM)
+
+For client-side applications, you can use the WASM version of the library:
+
+1. Build the WASM module:
+
+```bash
+cd programs/signals_breakout_contracts/math-core
+cargo build --features wasm --target wasm32-unknown-unknown
+```
+
+2. Import and use in your JavaScript/TypeScript application:
+
+```typescript
+// Import the math-core WASM module
+import * as mathCore from "./path/to/math_core_wasm.js";
+
+// Calculate buying cost for a single bin
+const cost = mathCore.calculateBinBuyCost(
+  tokenAmount, // x: token amount to purchase
+  binQuantity, // q: current bin quantity
+  totalTokens // T: total token quantity
+);
+
+// Calculate selling cost for a single bin
+const revenue = mathCore.calculateBinSellCost(
+  tokenAmount, // x: token amount to sell
+  binQuantity, // q: current bin quantity
+  totalTokens // T: total token quantity
+);
+
+// Calculate buying cost across multiple bins
+const multiBinCost = mathCore.calculateMultiBinsBuyCost(
+  tokenAmount, // x: token amount to purchase for each bin
+  binQuantities, // qs: array of bin quantities
+  totalTokens // T: total token quantity
+);
+
+// Calculate selling cost across multiple bins
+const multiBinRevenue = mathCore.calculateMultiBinsSellCost(
+  tokenAmount, // x: token amount to sell for each bin
+  binQuantities, // qs: array of bin quantities
+  totalTokens // T: total token quantity
+);
+
+// Calculate maximum purchasable tokens for a given budget
+const maxTokens = mathCore.calculateXForMultiBins(
+  budget, // Maximum budget to spend
+  binQuantities, // qs: array of bin quantities
+  totalTokens // T: total token quantity
+);
+```
+
+This allows client applications to perform the same cost calculations as the on-chain program, ensuring consistency between frontend and backend.
+
 ## Example Scripts
 
 The project provides the following useful scripts:

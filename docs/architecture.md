@@ -67,6 +67,17 @@ pub struct BinBal {
 }
 ```
 
+### Math Core (External Crate)
+
+The mathematical functions for price calculations are implemented in a separate crate called `math-core`. This allows for modular development and reuse of the mathematical model.
+
+Key features of the Math Core:
+
+- Separate compilation targets for on-chain (BPF) and WASM
+- Implementation of the (q+t)/(T+t) price formula
+- Functions for buying and selling in single and multiple bins
+- Robust error handling and overflow protection
+
 ## Main Instructions
 
 ### Program Initialization (initializeProgram)
@@ -171,6 +182,8 @@ Where:
 - `x`: Token quantity to purchase
 
 This formula allows costs to be dynamically adjusted according to liquidity. The more bets placed on a specific range, the higher the cost of betting on that range.
+
+For the detailed implementation of these mathematical functions, refer to the `math-core` crate in the project.
 
 ## Events
 

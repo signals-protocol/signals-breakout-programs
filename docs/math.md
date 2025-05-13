@@ -1,6 +1,6 @@
 # Signals Breakout Contracts Mathematical Model
 
-This document explains the core mathematical models and cost calculation algorithms used in the Signals Breakout Contracts project.
+This document explains the core mathematical models and cost calculation algorithms used in the Signals Breakout Contracts project. These functions are implemented in the separate `math-core` crate.
 
 ## Core Price Formula
 
@@ -22,108 +22,36 @@ Where:
 This integral has the following mathematical solution:
 
 ```
-Cost = x + q * ln((T+x)/(T)) = x + q * ln(1 + x/T)
+Cost = x + (q-T)*ln((T+x)/T) = x + (q-T)*ln(1 + x/T)
 ```
 
-This formula is implemented in `rust` code as follows:
+## Implementation in Math Core
 
-```rust
-pub fn calculate_cost(amount: u64, bin_q: u64, t_total: u64) -> Result<u64> {
-    if amount == 0 {
-        return Ok(0);
-    }
+The formula is implemented in the `math-core` crate, which is available at `programs/signals_breakout_contracts/math-core/`. The crate provides a set of functions for different use cases:
 
-    // First term: x (amount)
-    let mut cost = amount;
+### Single Bin Operations
 
-    // Calculate second term if q is not 0: q * ln((T+x)/T)
-    if bin_q > 0 {
-        // Calculate logarithm part: ln(1 + x/T)
-        // Use fixed-point arithmetic to prevent overflow
-        let ln_part = calculate_ln_part(amount, t_total)?;
+- `calculate_bin_buy_cost`: Calculates the cost to purchase tokens in a single bin
+- `calculate_bin_sell_cost`: Calculates the revenue from selling tokens in a single bin
 
-        // q * ln_part
-        let second_term = (bin_q as u128 * ln_part as u128) / PRECISION;
+### Multi-bin Operations
 
-        // Add second term to total cost
-        cost = cost.checked_add(second_term as u64)
-            .ok_or(error!(RangeBetError::MathOverflow))?;
-    }
+- `calculate_multi_bins_buy_cost`: Calculates the cost to purchase tokens across multiple bins
+- `calculate_multi_bins_sell_cost`: Calculates the revenue from selling tokens across multiple bins
+- `calculate_x_for_multi_bins`: Calculates the maximum token quantity that can be purchased with a given budget
 
-    Ok(cost)
-}
-```
+## Logarithm Calculation
 
-## Reverse Calculation: Quantity from Cost
+The crate includes a custom implementation of the natural logarithm function optimized for fixed-point arithmetic to prevent overflows and provide accurate results even with large numbers.
 
-Calculating token quantity corresponding to a specific cost is done through the inverse transformation of the integral. This is equivalent to finding the solution to the following equation:
+## Compilation Targets
 
-```
-cost = x + q * ln(1 + x/T)
-```
+The `math-core` crate can be compiled for two targets:
 
-The code implements this using binary search:
+1. **On-chain BPF**: For use in the Solana program
+2. **WASM**: For client-side applications to perform the same calculations
 
-```rust
-pub fn calculate_tokens_for_cost(cost: u64, bin_q: u64, t_total: u64) -> Result<u64> {
-    if cost == 0 {
-        return Ok(0);
-    }
-
-    // Return minimum 1 token if cost is too small
-    if cost <= 1 {
-        return Ok(1);
-    }
-
-    // Set initial range for binary search
-    let mut low: u64 = 1;
-    let mut high: u64 = u64::MAX - 1;
-
-    while low <= high {
-        let mid = low + (high - low) / 2;
-
-        // Calculate cost for the given token quantity
-        let calculated_cost = calculate_cost(mid, bin_q, t_total)?;
-
-        // Compare costs
-        match calculated_cost.cmp(&cost) {
-            std::cmp::Ordering::Equal => return Ok(mid),
-            std::cmp::Ordering::Less => low = mid + 1,
-            std::cmp::Ordering::Greater => {
-                if mid == 1 {
-                    return Ok(1);
-                }
-                high = mid - 1;
-            }
-        }
-    }
-
-    // Return the closest estimate
-    Ok(high)
-}
-```
-
-## Logarithm Function Implementation
-
-The natural logarithm function required for integral calculation is implemented using fixed-point operations. The logarithm is calculated using Taylor series expansion or other numerical approximations:
-
-```rust
-/// Logarithm calculation part: ln(1 + x/T)
-pub fn calculate_ln_part(x: u64, t: u64) -> Result<u64> {
-    if t == 0 {
-        return Err(error!(RangeBetError::DivisionByZero));
-    }
-
-    // Calculate x/T ratio (using fixed-point precision)
-    let ratio = (x as u128 * PRECISION as u128) / t as u128;
-
-    // Calculate ln(1 + ratio)
-    // Using Taylor series or other approximation
-    let ln_result = natural_log(PRECISION + ratio as u64)?;
-
-    Ok(ln_result)
-}
-```
+This dual compilation capability ensures that both the on-chain program and client applications use identical mathematical logic.
 
 ## Market Mechanism and Balance
 
