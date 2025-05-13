@@ -2,19 +2,19 @@ use crate::RangeBetMath;
 
 #[test]
 fn test_bin_sell_cost_edge_cases() {
-    // 판매량이 0인 경우
+    // When sale amount is 0
     assert_eq!(RangeBetMath::calculate_bin_sell_cost(0, 100, 1000).unwrap(), 0);
     
-    // q=t인 경우 (로그 항의 계수가 0)
+    // When q=t (coefficient of log term is 0)
     assert_eq!(RangeBetMath::calculate_bin_sell_cost(100, 1000, 1000).unwrap(), 100);
 }
 
 #[test]
 fn test_bin_sell_cost_normal_cases() {
-    // 일반적인 케이스
+    // Normal cases
     assert!(RangeBetMath::calculate_bin_sell_cost(100, 500, 1000).unwrap() < 100);
     
-    // q가 t에 가까워질수록 수익이 x에 가까워짐
+    // As q gets closer to t, revenue gets closer to x
     let revenue1 = RangeBetMath::calculate_bin_sell_cost(100, 500, 1000).unwrap();
     let revenue2 = RangeBetMath::calculate_bin_sell_cost(100, 800, 1000).unwrap();
     let revenue3 = RangeBetMath::calculate_bin_sell_cost(100, 950, 1000).unwrap();
@@ -25,55 +25,64 @@ fn test_bin_sell_cost_normal_cases() {
 
 #[test]
 fn test_bin_sell_cost_exceed_bin() {
-    // 빈에 있는 토큰보다 많이 판매하는 경우
+    // Selling more tokens than in the bin
     let result = RangeBetMath::calculate_bin_sell_cost(600, 500, 1000);
     assert!(result.is_err());
+    // Check error pattern
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Cannot sell more than bin"));
 }
 
 #[test]
 fn test_bin_sell_cost_exceed_supply() {
-    // 총 공급량보다 많이 판매하는 경우
+    // Selling more than total supply
     let result = RangeBetMath::calculate_bin_sell_cost(1200, 1500, 1000);
     assert!(result.is_err());
+    // Check error pattern
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Cannot sell more than supply"));
 }
 
 #[test]
 fn test_bin_sell_cost_invalid_state() {
-    // q > t인 경우 (불가능한 상태)
+    // When q > t (impossible state)
     let result = RangeBetMath::calculate_bin_sell_cost(100, 1500, 1000);
     assert!(result.is_err());
+    // Check error pattern
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("Invalid bin state"));
 }
 
 #[test]
 fn test_bin_sell_cost_extreme_values() {
-    // 매우 큰 값 테스트
+    // Testing very large values
     let huge_x = 1_000_000_000;              // 10^9
-    let huge_q = u64::MAX / 2;               // 약 9.2 * 10^18
-    let huge_t = u64::MAX / 2;               // 약 9.2 * 10^18
+    let huge_q = u64::MAX / 2;               // approximately 9.2 * 10^18
+    let huge_t = u64::MAX / 2;               // approximately 9.2 * 10^18
     
-    // 매우 큰 값으로 테스트해도 오류가 발생하지 않아야 함
+    // Should not cause errors even with very large values
     let revenue = RangeBetMath::calculate_bin_sell_cost(huge_x, huge_q, huge_t).unwrap();
     assert!(revenue > 0);
     assert!(revenue <= huge_x);
     
-    // q가 거의 t에 가까운 경우 - 수익은 x에 가까워야 함
+    // When q is very close to t - revenue should be close to x
     let nearly_t = huge_t;
     let revenue_near_t = RangeBetMath::calculate_bin_sell_cost(huge_x, nearly_t, huge_t).unwrap();
     assert_eq!(revenue_near_t, huge_x);
     
-    // 매우 작은 값 테스트 - lamport 단위 (10^-9 SOL)
+    // Testing very small values - lamport unit (10^-9 SOL)
     let tiny_x = 1;  // 1 lamport
     let tiny_revenue = RangeBetMath::calculate_bin_sell_cost(tiny_x, 100, 100).unwrap();
     assert_eq!(tiny_revenue, tiny_x);
     
-    // 매우 작은 값 테스트 - q < t인 경우
+    // Testing very small values - when q < t
     let tiny_revenue2 = RangeBetMath::calculate_bin_sell_cost(tiny_x, 10, 100).unwrap();
     assert!(tiny_revenue2 <= tiny_x);
 }
 
 #[test]
 fn test_bin_sell_cost_incremental() {
-    // x 값이 증가할 때 수익도 증가해야 함을 확인
+    // Verifying that revenue increases when x increases
     let q = 500;
     let t = 1000;
     
@@ -87,24 +96,24 @@ fn test_bin_sell_cost_incremental() {
 
 #[test]
 fn test_bin_sell_cost_large_dataset() {
-    // 다양한 입력 조합으로 대규모 테스트 수행
+    // Performing large-scale tests with various input combinations
     let x_values = [1, 10, 100, 1_000, 10_000, 100_000];
-    let q_ratios = [0.2, 0.5, 0.8, 0.95, 1.0]; // q/t 비율
+    let q_ratios = [0.2, 0.5, 0.8, 0.95, 1.0]; // q/t ratio
     let t_values = [100, 1_000, 10_000, 100_000, 1_000_000];
     
     for &t in &t_values {
         for &ratio in &q_ratios {
             let q = (t as f64 * ratio) as u64;
             
-            // x는 q를 초과할 수 없음
+            // x cannot exceed q
             for &x in &x_values {
                 if x <= q && x <= t {
                     match RangeBetMath::calculate_bin_sell_cost(x, q, t) {
                         Ok(revenue) => {
-                            // 수익이 x 이하여야 함
+                            // Revenue should be less than or equal to x
                             assert!(revenue <= x);
                             
-                            // q가 t에 가까워질수록 수익은 x에 가까워짐
+                            // As q gets closer to t, revenue gets closer to x
                             if ratio > 0.9 {
                                 assert!(revenue > x / 2);
                             }
@@ -112,7 +121,7 @@ fn test_bin_sell_cost_large_dataset() {
                                 assert_eq!(revenue, x);
                             }
                             
-                            // 수익은 항상 양수여야 함 (x > 0인 경우)
+                            // Revenue should always be positive (when x > 0)
                             if x > 0 {
                                 assert!(revenue > 0);
                             } else {
@@ -120,8 +129,8 @@ fn test_bin_sell_cost_large_dataset() {
                             }
                         },
                         Err(e) => {
-                            // 이 테스트에서는 오류가 발생하지 않아야 함 (x <= q && x <= t)
-                            assert!(false, "계산 중 오류 발생: x={}, q={}, t={}, 오류={:?}", x, q, t, e);
+                            // Should not have errors in this test (x <= q && x <= t)
+                            assert!(false, "Calculation error: x={}, q={}, t={}, error={:?}", x, q, t, e);
                         }
                     }
                 }
@@ -132,22 +141,22 @@ fn test_bin_sell_cost_large_dataset() {
 
 #[test]
 fn test_bin_sell_cost_precision() {
-    // 판매 정밀도 테스트 - lamport 단위로 판매할 때 정밀도 확인
-    let t = 1_000_000;  // 충분히 큰 t
+    // Sale precision test - verify precision when selling in lamport units
+    let t = 1_000_000;  // Sufficiently large t
     let q_values = [t / 10, t / 2, t - 1, t];
     
     for &q in &q_values {
-        // 1 lamport부터 차례대로 판매
+        // Sell from 1 lamport sequentially
         for x in 1..20 {
             let revenue = RangeBetMath::calculate_bin_sell_cost(x, q, t).unwrap();
             
-            // 수익은 항상 0보다 커야 함
+            // Revenue should always be greater than 0
             assert!(revenue > 0);
             
-            // 수익은, 항상 판매량 이하여야 함
+            // Revenue should always be less than or equal to sale amount
             assert!(revenue <= x);
             
-            // q가 t에 가까울수록 수익은 x에 가까움
+            // As q gets closer to t, revenue gets closer to x
             if q == t {
                 assert_eq!(revenue, x);
             }
@@ -157,7 +166,7 @@ fn test_bin_sell_cost_precision() {
 
 #[test]
 fn test_bin_sell_cost_boundary_cases() {
-    // 경계값 테스트: x가 q와 같은 경우 (최대 판매 가능량)
+    // Boundary value test: when x equals q (maximum sellable amount)
     let tests = [
         (10, 10, 100),
         (50, 50, 100),
@@ -169,14 +178,14 @@ fn test_bin_sell_cost_boundary_cases() {
         let revenue = RangeBetMath::calculate_bin_sell_cost(x, q, t).unwrap();
         assert!(revenue <= x);
         
-        // q=t인 경우 revenue=x여야 함
+        // When q=t, revenue should equal x
         if q == t {
             assert_eq!(revenue, x);
         }
     }
     
-    // 경계값 테스트: t-x가 거의 0에 가까운 경우 (t에 가까운 판매)
-    // SellCalculationUnderflow 오류가 발생해야 함
+    // Boundary value test: when t-x is very close to 0 (selling close to t)
+    // SellCalculationUnderflow error should occur
     let result = RangeBetMath::calculate_bin_sell_cost(999, 1000, 1000);
     assert!(result.is_ok());
     
@@ -186,26 +195,26 @@ fn test_bin_sell_cost_boundary_cases() {
 
 #[test]
 fn test_bin_sell_cost_mathematical_properties() {
-    // 수학적 특성 테스트: 이론적으로 계산한 값과 일치하는지 확인
-    // 이론: q=t인 경우, 수익 = x
-    // 이론: q<t인 경우, 수익 = x - (t-q)*ln(t/(t-x))
+    // Mathematical property test: verify revenue matches theoretical value
+    // Theory: when q=t, revenue = x
+    // Theory: when q<t, revenue = x - (t-q)*ln(t/(t-x))
     
     let test_cases = [
-        (100, 1000, 1000),  // q=t 케이스
-        (100, 500, 1000),   // q<t 케이스
-        (100, 900, 1000),   // q가 t에 가까운 케이스
-        (10, 10, 100)       // x=q, q<t 케이스
+        (100, 1000, 1000),  // q=t case
+        (100, 500, 1000),   // q<t case
+        (100, 900, 1000),   // q is close to t case
+        (10, 10, 100)       // x=q, q<t case
     ];
     
     for (x, q, t) in test_cases {
         let actual_revenue = RangeBetMath::calculate_bin_sell_cost(x, q, t).unwrap();
         
-        // 이론적인 수익 계산
+        // Theoretical revenue calculation
         let theoretical_revenue = if q == t {
-            // q=t인 경우 수익은 x와 같음
+            // When q=t, revenue equals x
             x as f64
         } else {
-            // q<t인 경우 공식 적용
+            // When q<t, apply formula
             let x_f64 = x as f64;
             let q_f64 = q as f64;
             let t_f64 = t as f64;
@@ -217,7 +226,7 @@ fn test_bin_sell_cost_mathematical_properties() {
         
         let theoretical_revenue_rounded = (theoretical_revenue + 0.5) as u64;
         
-        // 1% 이내의 오차 범위 허용
+        // Allow 1% error margin
         let margin = (theoretical_revenue_rounded / 100).max(1);
         let diff = if actual_revenue > theoretical_revenue_rounded {
             actual_revenue - theoretical_revenue_rounded

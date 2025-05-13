@@ -7,9 +7,12 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-bpf  = []            # 온체인
+bpf  = []            # on-chain
 wasm = ["wasm-bindgen"]
 
 [dependencies]
 wasm-bindgen = { version = "0.2", optional = true }
-anchor-lang  = { version = "0.31.1", default-features = false } 
+anchor-lang  = { version = "0.31.1", default-features = false }
+
+[dev-dependencies]
+proptest = "1.2.0" 

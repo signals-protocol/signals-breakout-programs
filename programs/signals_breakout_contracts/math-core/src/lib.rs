@@ -198,18 +198,18 @@ impl RangeBetMath {
             return Ok(0);
         }
         
-        // 연산 시작점 설정: 좌측은 0, 우측은 최대값
-        let mut right: u64 = u64::MAX / (qs.len() as u64 + 1);  // 오버플로우 방지를 위한 최대값
+        // Set operation starting points: left is 0, right is maximum value
+        let mut right: u64 = u64::MAX / (qs.len() as u64 + 1);  // Maximum value to prevent overflow
         let mut left: u64 = 0;
         
-        // 단순한 무한 이진 탐색 (종료 조건으로 제어)
+        // Simple unbounded binary search (controlled by termination condition)
         while right > left + 1 {
             let mid = left + (right - left) / 2;
             
             // Calculate cost of middle value for all bins
             match Self::calculate_multi_bins_buy_cost(mid, qs, t) {
                 Ok(calculated_cost) => {
-                    // 정확히 예산과 같은 비용을 가진 경우 즉시 반환
+                    // If cost exactly matches budget, return immediately
                     if calculated_cost == budget {
                         return Ok(mid);
                     }
@@ -228,33 +228,33 @@ impl RangeBetMath {
             }
         }
         
-        // 이진 탐색이 끝난 후, 최종 left와 right 값의 비용을 계산
+        // After binary search ends, calculate costs for final left and right values
         let left_cost = match Self::calculate_multi_bins_buy_cost(left, qs, t) {
             Ok(c) => c,
-            Err(_) => 0 // 오류 발생 시 0으로 처리
+            Err(_) => 0 // Treat as 0 if error occurs
         };
         
         let right_cost = match Self::calculate_multi_bins_buy_cost(right, qs, t) {
             Ok(c) => c,
-            Err(_) => u64::MAX // 오류 발생 시 최대값으로 처리 (선택되지 않도록)
+            Err(_) => u64::MAX // Treat as maximum value if error occurs (to avoid selection)
         };
         
-        // 예산 이하의 최대 X 값 선택
-        // left가 예산 내에 있는 경우
+        // Select maximum X value within budget
+        // If left is within budget
         if left_cost <= budget {
-            // right도 예산 내에 있다면 더 큰 right 선택
+            // If right is also within budget, select the larger right
             if right_cost <= budget {
                 return Ok(right);
             }
-            // left만 예산 내에 있다면 left 선택
+            // If only left is within budget, select left
             return Ok(left);
         }
-        // right만 예산 내에 있는 경우 (이론적으로는 발생 안함)
+        // If only right is within budget (theoretically shouldn't happen)
         else if right_cost <= budget {
             return Ok(right);
         }
         
-        // 어떤 경우에도 적절한 값을 찾지 못한 경우 (매우 작은 예산)
+        // If no suitable value is found in any case (very small budget)
         Ok(0)
     }
 }

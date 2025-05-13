@@ -2,23 +2,23 @@ use crate::RangeBetMath;
 
 #[test]
 fn test_bin_buy_cost_edge_cases() {
-    // 구매량이 0인 경우
+    // When purchase amount is 0
     assert_eq!(RangeBetMath::calculate_bin_buy_cost(0, 100, 1000).unwrap(), 0);
     
-    // 최초 구매 (t=0)인 경우
+    // First purchase (t=0) case
     assert_eq!(RangeBetMath::calculate_bin_buy_cost(100, 0, 0).unwrap(), 100);
     
-    // q=t인 경우 (로그 항의 계수가 0)
+    // When q=t (coefficient of log term is 0)
     assert_eq!(RangeBetMath::calculate_bin_buy_cost(100, 1000, 1000).unwrap(), 100);
 }
 
 #[test]
 fn test_bin_buy_cost_normal_cases() {
-    // 일반적인 케이스
+    // Normal cases
     assert!(RangeBetMath::calculate_bin_buy_cost(100, 500, 1000).unwrap() < 100);
     assert!(RangeBetMath::calculate_bin_buy_cost(100, 0, 1000).unwrap() < 100);
     
-    // q가 t에 가까워질수록 비용이 x에 가까워짐
+    // As q gets closer to t, cost gets closer to x
     let cost1 = RangeBetMath::calculate_bin_buy_cost(100, 0, 1000).unwrap();
     let cost2 = RangeBetMath::calculate_bin_buy_cost(100, 500, 1000).unwrap();
     let cost3 = RangeBetMath::calculate_bin_buy_cost(100, 900, 1000).unwrap();
@@ -29,29 +29,29 @@ fn test_bin_buy_cost_normal_cases() {
 
 #[test]
 fn test_bin_buy_cost_invalid_state() {
-    // q > t인 경우 (불가능한 상태)
+    // When q > t (impossible state)
     let result = RangeBetMath::calculate_bin_buy_cost(100, 1500, 1000);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_bin_buy_cost_extreme_values() {
-    // 매우 큰 값 테스트
+    // Testing very large values
     let huge_x = 10_000_000_000;           // 10^10
-    let huge_q = u64::MAX / 3;             // 약 6.1 * 10^18
-    let huge_t = u64::MAX / 2;             // 약 9.2 * 10^18
+    let huge_q = u64::MAX / 3;             // approximately 6.1 * 10^18
+    let huge_t = u64::MAX / 2;             // approximately 9.2 * 10^18
     
-    // 매우 큰 값으로 테스트해도 오류가 발생하지 않아야 함
+    // Should not cause errors even with very large values
     let cost = RangeBetMath::calculate_bin_buy_cost(huge_x, huge_q, huge_t).unwrap();
     assert!(cost > 0 && cost <= huge_x);
     
-    // q가 거의 t에 가까운 경우 - 비용은 x에 가까워야 함
+    // When q is very close to t - cost should be close to x
     let nearly_t = huge_t - 1;
     let cost_near_t = RangeBetMath::calculate_bin_buy_cost(huge_x, nearly_t, huge_t).unwrap();
     assert!(cost_near_t > cost);
     assert!(cost_near_t <= huge_x);
     
-    // 매우 작은 값 테스트 - lamport 단위 (10^-9 SOL)
+    // Testing very small values - lamport unit (10^-9 SOL)
     let tiny_x = 1;  // 1 lamport
     let tiny_cost = RangeBetMath::calculate_bin_buy_cost(tiny_x, 10, 100).unwrap();
     assert!(tiny_cost > 0);
@@ -59,7 +59,7 @@ fn test_bin_buy_cost_extreme_values() {
 
 #[test]
 fn test_bin_buy_cost_incremental() {
-    // x 값이 증가할 때 비용도 증가해야 함을 확인
+    // Verifying that cost increases when x increases
     let q = 500;
     let t = 1000;
     
@@ -73,9 +73,9 @@ fn test_bin_buy_cost_incremental() {
 
 #[test]
 fn test_bin_buy_cost_large_dataset() {
-    // 다양한 입력 조합으로 대규모 테스트 수행
+    // Performing large-scale tests with various input combinations
     let x_values = [1, 10, 100, 1_000, 10_000, 100_000, 1_000_000];
-    let q_ratios = [0.0, 0.1, 0.5, 0.9, 0.99, 1.0]; // q/t 비율
+    let q_ratios = [0.0, 0.1, 0.5, 0.9, 0.99, 1.0]; // q/t ratio
     let t_values = [100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000];
     
     for &x in &x_values {
@@ -85,10 +85,10 @@ fn test_bin_buy_cost_large_dataset() {
                 
                 match RangeBetMath::calculate_bin_buy_cost(x, q, t) {
                     Ok(cost) => {
-                        // 비용이 x 이하여야 함
+                        // Cost should be less than or equal to x
                         assert!(cost <= x);
                         
-                        // q가 t에 가까워질수록 비용은 x에 가까워짐
+                        // As q gets closer to t, cost gets closer to x
                         if ratio > 0.5 {
                             assert!(cost > x / 2);
                         }
@@ -96,7 +96,7 @@ fn test_bin_buy_cost_large_dataset() {
                             assert_eq!(cost, x);
                         }
                         
-                        // 비용은 항상 양수여야 함 (x > 0인 경우)
+                        // Cost should always be positive (when x > 0)
                         if x > 0 {
                             assert!(cost > 0);
                         } else {
@@ -104,9 +104,9 @@ fn test_bin_buy_cost_large_dataset() {
                         }
                     },
                     Err(_) => {
-                        // q > t인 경우에만 오류가 발생함
-                        // 이 테스트에서는 발생하지 않아야 함 (ratio <= 1.0)
-                        assert!(false, "계산 중 오류 발생: x={}, q={}, t={}", x, q, t);
+                        // Error should only occur when q > t
+                        // Should not happen in this test (ratio <= 1.0)
+                        assert!(false, "Calculation error: x={}, q={}, t={}", x, q, t);
                     }
                 }
             }
@@ -116,7 +116,7 @@ fn test_bin_buy_cost_large_dataset() {
 
 #[test]
 fn test_bin_buy_cost_boundary_cases() {
-    // Lamport 정밀도 테스트 (1 lamport = 10^-9 SOL)
+    // Lamport precision test (1 lamport = 10^-9 SOL)
     let lamport_costs = [
         RangeBetMath::calculate_bin_buy_cost(1, 0, 100).unwrap(),
         RangeBetMath::calculate_bin_buy_cost(1, 50, 100).unwrap(),
@@ -124,20 +124,20 @@ fn test_bin_buy_cost_boundary_cases() {
         RangeBetMath::calculate_bin_buy_cost(1, 99, 100).unwrap()
     ];
     
-    // 최소값 1 lamport 처리 확인
+    // Verify minimum value of 1 lamport
     for cost in lamport_costs {
         assert!(cost >= 1);
     }
     
-    // 경계값 테스트: 매우 큰 x, 매우 작은 q/t 비율
+    // Boundary value test: very large x, very small q/t ratio
     let result = RangeBetMath::calculate_bin_buy_cost(u64::MAX / 1_000, 1, u64::MAX / 100);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_bin_buy_cost_mathematical_properties() {
-    // 수학적 특성 테스트: q=0인 경우 비용이 이론적으로 계산한 값과 일치하는지 확인
-    // 이론: q=0인 경우, 비용 = x * (1 - ln(1 + x/t))
+    // Mathematical property test: verify cost matches theoretical value when q=0
+    // Theory: when q=0, cost = x * (1 - ln(1 + x/t))
     
     let test_cases = [
         (100, 0, 1000),
@@ -149,13 +149,13 @@ fn test_bin_buy_cost_mathematical_properties() {
     for (x, q, t) in test_cases {
         let actual_cost = RangeBetMath::calculate_bin_buy_cost(x, q, t).unwrap();
         
-        // 이론적인 비용 계산 (이론식 적용, 부동소수점 정밀도 문제로 근사치 비교)
+        // Theoretical cost calculation (applying formula, approximate comparison due to floating point precision)
         let x_f64 = x as f64;
         let t_f64 = t as f64;
         let theoretical_cost = x_f64 * (1.0 - (1.0 + x_f64/t_f64).ln() * t_f64 / x_f64);
         let theoretical_cost_rounded = (theoretical_cost + 0.5) as u64;
         
-        // actual_cost가 theoretical_cost_rounded와 1% 이내의 오차 범위에 있는지 확인
+        // Check if actual_cost is within 1% error margin of theoretical_cost_rounded
         let margin = (theoretical_cost_rounded / 100).max(1);
         let diff = if actual_cost > theoretical_cost_rounded {
             actual_cost - theoretical_cost_rounded
