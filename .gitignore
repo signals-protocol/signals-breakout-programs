@@ -22,6 +22,9 @@ node_modules
 
 /docker-target
 
+# Don't ignore the pkg-wasm directory
+!programs/signals_breakout_contracts/pkg-wasm/
+
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

@@ -11,7 +11,7 @@
     "verify:dev": "anchor verify 97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J --provider.cluster devnet",
     "clean": "rm -rf ./target",
     "build:clean": "anchor clean && anchor build",
-    "build:wasm": "cd programs/signals_breakout_contracts/math-core && wasm-pack build --target bundler --out-dir ../pkg-wasm --features wasm",
+    "build:wasm": "bash build-wasm.sh",
     "idl:generate": "anchor build && anchor idl parse -f ./target/idl/range_bet_program.json -o ./target/types/range_bet_program.ts",
     "account": "anchor run account-fetch",
     "create-markets": "ts-node scripts/create-markets.ts",

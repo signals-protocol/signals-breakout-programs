@@ -1,0 +1,32 @@
+{
+  "name": "range-bet-math-core",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Mathematical core library for Signals Breakout Contracts protocol",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/signals-protocol/signals-breakout-contracts/tree/main/programs/signals_breakout_contracts/math-core"
+  },
+  "keywords": [
+    "solana",
+    "math",
+    "wasm",
+    "breakout",
+    "signals"
+  ],
+  "author": "Signals Team",
+  "license": "ISC",
+  "files": [
+    "range_bet_math_core_bg.wasm",
+    "range_bet_math_core.js",
+    "range_bet_math_core_bg.js",
+    "range_bet_math_core.d.ts",
+    "README.md"
+  ],
+  "main": "range_bet_math_core.js",
+  "types": "range_bet_math_core.d.ts",
+  "sideEffects": [
+    "./range_bet_math_core.js",
+    "./snippets/*"
+  ]
+}
