@@ -1132,6 +1132,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "range-bet-math-core"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1298,6 +1306,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "range-bet-math-core",
 ]
 
 [[package]]

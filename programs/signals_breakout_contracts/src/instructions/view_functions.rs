@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use crate::state::Market; 
 use crate::errors::RangeBetError;
-use crate::math::RangeBetMath;
+pub use range_bet_math_core::RangeBetMath;
 
 #[derive(Accounts)]
 #[instruction(market_id: u64)]
-pub struct CalculateBinCost<'info> {
+pub struct CalculateBinBuyCost<'info> {
     #[account(
         seeds = [b"market", &market_id.to_le_bytes()],
         bump,
@@ -38,8 +38,8 @@ pub struct CalculateBinSellCost<'info> {
 }
 
 /// Instruction (view) to calculate the cost of buying tokens in a specific bin
-pub fn calculate_bin_cost(
-    ctx: Context<CalculateBinCost>,
+pub fn calculate_bin_buy_cost(
+    ctx: Context<CalculateBinBuyCost>,
     index: u16,
     amount: u64,
 ) -> Result<u64> {
@@ -55,7 +55,7 @@ pub fn calculate_bin_cost(
     let bin_q = market.bins[index as usize];
     
     // Calculate cost
-    let cost = RangeBetMath::calculate_cost(amount, bin_q, market.t_total)?;
+    let cost = RangeBetMath::calculate_bin_buy_cost(amount, bin_q, market.t_total)?;
     
     Ok(cost)
 }
@@ -78,7 +78,7 @@ pub fn calculate_x_for_bin(
     let bin_q = market.bins[index as usize];
     
     // Calculate amount
-    let amount = RangeBetMath::calculate_x_for_cost(cost, bin_q, market.t_total)?;
+    let amount = RangeBetMath::calculate_x_for_multi_bins(cost, &[bin_q], market.t_total)?;
     
     Ok(amount)
 }
@@ -107,7 +107,7 @@ pub fn calculate_bin_sell_cost(
     require!(amount <= bin_q, RangeBetError::CannotSellMoreThanBin);
     
     // Calculate sell revenue
-    let sell_revenue = RangeBetMath::calculate_sell_cost(amount, bin_q, market.t_total)?;
+    let sell_revenue = RangeBetMath::calculate_bin_sell_cost(amount, bin_q, market.t_total)?;
     
     Ok(sell_revenue)
 } 

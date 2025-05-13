@@ -71,7 +71,7 @@ describe("Bin Range Query", () => {
       if (binAmount.gt(new BN(0))) {
         try {
           cost = await env.program.methods
-            .calculateBinCost(new BN(env.marketId), binIndex, binAmount)
+            .calculateBinBuyCost(new BN(env.marketId), binIndex, binAmount)
             .accounts({})
             .view();
         } catch (e) {

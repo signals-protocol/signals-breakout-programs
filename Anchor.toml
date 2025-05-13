@@ -15,7 +15,7 @@ signals_breakout_contracts = "97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

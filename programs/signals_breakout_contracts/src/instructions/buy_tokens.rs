@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, TokenAccount, Token, Transfer};
 use crate::state::{Market, UserMarketPosition, BinBal, TokensBought};
 use crate::errors::RangeBetError;
-use crate::math::RangeBetMath;
+pub use range_bet_math_core::RangeBetMath;
 
 #[derive(Accounts)]
 #[instruction(market_id: u64)]
@@ -91,7 +91,7 @@ pub fn buy_tokens(
         market.bins[index as usize] += amount;
         
         // Calculate cost
-        let cost = RangeBetMath::calculate_cost(amount, bin_q, t_current)?;
+        let cost = RangeBetMath::calculate_bin_buy_cost(amount, bin_q, t_current)?;
         total_cost = total_cost.checked_add(cost).ok_or(error!(RangeBetError::MathOverflow))?;
         
         // Add to user position

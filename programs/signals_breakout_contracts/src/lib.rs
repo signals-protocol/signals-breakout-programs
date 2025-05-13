@@ -3,7 +3,6 @@ use anchor_lang::prelude::*;
 
 declare_id!("97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J");
 
-mod math;
 mod state;
 mod errors;
 mod instructions;
@@ -85,14 +84,14 @@ pub mod range_bet_program {
     }
 
     // View functions (instructions for simulation)
-    pub fn calculate_bin_cost(
-        ctx: Context<CalculateBinCost>,
+    pub fn calculate_bin_buy_cost(
+        ctx: Context<CalculateBinBuyCost>,
         _market_id: u64,
         index: u16,
         amount: u64,
     ) -> Result<u64> {
-        msg!("Calculate Bin Cost");
-        instructions::view_functions::calculate_bin_cost(ctx, index, amount)
+        msg!("Calculate Bin Buy Cost");
+        instructions::view_functions::calculate_bin_buy_cost(ctx, index, amount)
     }
 
     pub fn calculate_x_for_bin(

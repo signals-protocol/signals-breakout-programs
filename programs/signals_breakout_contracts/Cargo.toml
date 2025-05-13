@@ -21,4 +21,5 @@ init-if-needed = ["anchor-lang/init-if-needed"]
 [dependencies]
 anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 anchor-spl = { version = "0.31.1" }
+range-bet-math-core = { path = "./math-core", features = ["bpf"] }
 

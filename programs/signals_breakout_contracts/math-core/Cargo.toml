@@ -1,0 +1,15 @@
+[package]
+name    = "range-bet-math-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+bpf  = []            # 온체인
+wasm = ["wasm-bindgen"]
+
+[dependencies]
+wasm-bindgen = { version = "0.2", optional = true }
+anchor-lang  = { version = "0.31.1", default-features = false } 

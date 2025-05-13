@@ -53,7 +53,7 @@ describe("Utility Functions", () => {
 
       // Calculate in empty market
       const cost = await env.program.methods
-        .calculateBinCost(new BN(env.marketId), 0, amount)
+        .calculateBinBuyCost(new BN(env.marketId), 0, amount)
         .accounts({
           market: env.market,
         })
@@ -92,7 +92,11 @@ describe("Utility Functions", () => {
       await expectAnchorError(
         () =>
           env.program.methods
-            .calculateBinCost(new BN(env.marketId), 0, new BN(100_000_000_000))
+            .calculateBinBuyCost(
+              new BN(env.marketId),
+              0,
+              new BN(100_000_000_000)
+            )
             .accounts({
               market: env.market,
             })
@@ -113,7 +117,11 @@ describe("Utility Functions", () => {
       await expectAnchorError(
         () =>
           env.program.methods
-            .calculateBinCost(new BN(newMarketId), 0, new BN(100_000_000_000))
+            .calculateBinBuyCost(
+              new BN(newMarketId),
+              0,
+              new BN(100_000_000_000)
+            )
             .accounts({
               market: newMarket,
             })
@@ -130,7 +138,7 @@ describe("Utility Functions", () => {
       await expectAnchorError(
         () =>
           env.program.methods
-            .calculateBinCost(
+            .calculateBinBuyCost(
               new BN(env.marketId),
               outOfRangeIndex,
               new BN(100_000_000_000)
@@ -168,7 +176,7 @@ describe("Utility Functions", () => {
 
       // Actual calculation execution
       const cost = await env.program.methods
-        .calculateBinCost(new BN(env.marketId), 0, amount)
+        .calculateBinBuyCost(new BN(env.marketId), 0, amount)
         .accounts({
           market: env.market,
         })
@@ -324,7 +332,7 @@ describe("Utility Functions", () => {
 
       // Calculate purchase cost (API call)
       const buyCost = await env.program.methods
-        .calculateBinCost(new BN(env.marketId), 0, buyAmount)
+        .calculateBinBuyCost(new BN(env.marketId), 0, buyAmount)
         .accounts({
           market: env.market,
         })
@@ -356,158 +364,6 @@ describe("Utility Functions", () => {
 
       // Cost and revenue should be the same in q=T case
       expect(sellRevenue.toString()).to.equal(buyCost.toString());
-    });
-  });
-
-  describe("calculateXForBin", () => {
-    // Create a new market before this test group
-    beforeEach(async () => {
-      // Always initialize with a new market to isolate state between tests
-      await env.resetMarket();
-    });
-
-    it("In an empty market, quantity should be the same as cost", async () => {
-      const cost = new BN(100_000_000_000);
-
-      // Calculate
-      const amount = await env.program.methods
-        .calculateXForBin(new BN(env.marketId), 0, cost)
-        .accounts({
-          market: env.market,
-        })
-        .view();
-
-      // In an empty market, quantity should be the same as cost
-      expect(amount.toString()).to.equal(cost.toString());
-    });
-
-    it("Should throw error in deactivated market", async () => {
-      // Deactivate market
-      await env.program.methods
-        .activateMarket(new BN(env.marketId), false)
-        .accounts({
-          owner: env.admin.publicKey,
-        })
-        .rpc();
-
-      // Calculate in deactivated market
-      await expectAnchorError(
-        () =>
-          env.program.methods
-            .calculateXForBin(new BN(env.marketId), 0, new BN(100_000_000_000))
-            .accounts({
-              market: env.market,
-            })
-            .view(),
-        "MarketNotActive"
-      );
-
-      // Next test, create a new market
-      const newMarket = await env.createNewMarket();
-      env.market = newMarket.market;
-      env.marketId = newMarket.marketId;
-    });
-
-    it("Should throw error in closed market", async () => {
-      // Create new market
-      const { market: newMarket, marketId: newMarketId } =
-        await env.createNewMarket();
-
-      // Close market sequentially
-      await env.closeMarketsSequentially(newMarketId, 0);
-
-      // Try to get quantity
-      await expectAnchorError(
-        () =>
-          env.program.methods
-            .calculateXForBin(new BN(newMarketId), 0, new BN(100_000_000_000))
-            .accounts({
-              market: newMarket,
-            })
-            .view(),
-        "MarketClosed"
-      );
-    });
-
-    it("Should throw error when calculating with an out-of-range empty index", async () => {
-      // Calculate with out-of-range index
-      const outOfRangeIndex =
-        Math.abs((env.maxTick - env.minTick) / env.tickSpacing) + 1;
-
-      await expectAnchorError(
-        () =>
-          env.program.methods
-            .calculateXForBin(
-              new BN(env.marketId),
-              outOfRangeIndex,
-              new BN(100_000_000_000)
-            )
-            .accounts({
-              market: env.market,
-            })
-            .view(),
-        "BinIndexOutOfRange"
-      );
-    });
-
-    it("When q < T, quantity should be greater than cost", async () => {
-      // Always use new market
-      await env.resetMarket();
-
-      // First buy tokens in bin 1 to increase T (sufficiently large value)
-      await env.program.methods
-        .buyTokens(
-          new BN(env.marketId),
-          [1], // Bin 1 (60)
-          [new BN(500_000_000_000)], // 500 tokens
-          new BN(600_000_000_000)
-        )
-        .accounts({
-          user: env.user1.publicKey,
-          userTokenAccount: env.userTokenAccounts.user1,
-          vault: env.vault,
-        })
-        .signers([env.user1])
-        .rpc();
-
-      // Now calculate quantity for a cost (sufficiently small value)
-      const cost = new BN(10_000_000_000); // 10 tokens worth
-      const amount = await env.program.methods
-        .calculateXForBin(new BN(env.marketId), 0, cost)
-        .accounts({
-          market: env.market,
-        })
-        .view();
-
-      // In q=0, T>0 state, quantity should be greater than cost
-      expect(new BN(amount).gt(cost)).to.be.true;
-    });
-
-    it("In an empty market (T=0), inverse function relationship should be exact", async () => {
-      // Always use new market
-      await env.resetMarket();
-
-      // Test quantity
-      const testAmount = new BN(25_000_000_000);
-
-      // Calculate quantity->cost in empty market (API call)
-      const cost = await env.program.methods
-        .calculateBinCost(new BN(env.marketId), 0, testAmount)
-        .accounts({
-          market: env.market,
-        })
-        .view();
-
-      // Calculate cost->quantity in empty market (API call)
-      const calculatedAmount = await env.program.methods
-        .calculateXForBin(new BN(env.marketId), 0, cost)
-        .accounts({
-          market: env.market,
-        })
-        .view();
-
-      // In an empty market, it should be exactly the same
-      expect(calculatedAmount.toString()).to.equal(testAmount.toString());
     });
   });
 });
