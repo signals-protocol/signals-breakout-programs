@@ -8,6 +8,10 @@ This crate implements the mathematical core for the Signals Breakout Contracts p
 - Robust mathematical implementation with overflow protection
 - Complete test suite including property-based tests
 
+## JavaScript/TypeScript Usage
+
+If you're using this library from JavaScript or TypeScript with the WASM build, please refer to the [TypeScript Guide](./GUIDE.md) for usage instructions and examples.
+
 ## Core Functions
 
 The crate exposes the following core mathematical functions:
@@ -90,6 +94,21 @@ cargo build-bpf
 
 ```bash
 cargo build --features wasm --target wasm32-unknown-unknown
+```
+
+### As an npm package
+
+To build and publish as an npm package:
+
+```bash
+# Build WASM with wasm-pack
+wasm-pack build --target bundler --out-dir ../pkg-wasm --features wasm
+
+# Or use the npm script
+npm run build:wasm
+
+# Publish to npm
+npm run publish:wasm
 ```
 
 ## Testing

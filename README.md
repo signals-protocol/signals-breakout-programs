@@ -227,6 +227,43 @@ This formula means that the betting cost adjusts according to the market's liqui
 
 The mathematical functions are implemented in a separate `math-core` crate that you can find in the `programs/signals_breakout_contracts/math-core` directory. This crate can be compiled both for on-chain use (BPF) and as a WASM module for client-side applications. For more details, see the [Math Core README](programs/signals_breakout_contracts/math-core/README.md).
 
+#### WASM Package for Frontend
+
+The Math Core is also available as an npm package that can be used in frontend applications. The package provides the same mathematical functions as the on-chain program, allowing cost calculations client-side before submitting transactions.
+
+Install the package:
+
+```bash
+npm install range-bet-math-core
+# or
+yarn add range-bet-math-core
+```
+
+Using the package in your project:
+
+````typescript
+import {
+  calculateBinBuyCost,
+  calculateMultiBinsBuyCost,
+} from "range-bet-math-core";
+
+// Calculate purchase cost for a single bin
+const cost = calculateBinBuyCost(100n, 500n, 1000n);
+
+// Calculate purchase cost for multiple bins
+const bins = new BigUint64Array([300n, 400n, 500n]);
+const multiCost = calculateMultiBinsBuyCost(100n, bins, 1000n);
+
+To build and publish the WASM package:
+
+```bash
+# Build WASM
+npm run build:wasm
+
+# Publish to NPM
+npm run publish:wasm
+````
+
 ## License
 
 Licensed under the ISC license. See the LICENSE file for details.

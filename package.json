@@ -15,7 +15,8 @@
     "idl:generate": "anchor build && anchor idl parse -f ./target/idl/range_bet_program.json -o ./target/types/range_bet_program.ts",
     "account": "anchor run account-fetch",
     "create-markets": "ts-node scripts/create-markets.ts",
-    "place-bets": "ts-node scripts/place-bets.ts"
+    "place-bets": "ts-node scripts/place-bets.ts",
+    "publish:wasm": "cd programs/signals_breakout_contracts/pkg-wasm && npm publish --access public"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
