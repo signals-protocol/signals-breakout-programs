@@ -1,4 +1,6 @@
 {
+  "name": "signals-breakout-contracts",
+  "version": "0.1.0",
   "license": "ISC",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
@@ -6,9 +8,9 @@
     "build": "anchor build",
     "test:local": "ANCHOR_PROVIDER_URL=http://localhost:8899 anchor test --provider.cluster localnet",
     "test:dev": "ANCHOR_PROVIDER_URL=https://api.devnet.solana.com anchor test --provider.cluster devnet",
-    "deploy:dev": "anchor deploy --provider.cluster devnet",
-    "upgrade:dev": "anchor upgrade --program-id 97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J ./target/deploy/signals_breakout_contracts.so --provider.cluster devnet",
-    "verify:dev": "anchor verify 97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J --provider.cluster devnet",
+    "deploy:dev": "anchor deploy --verifiable --provider.cluster devnet",
+    "upgrade:dev": "anchor build --verifiable && anchor upgrade --verifiable --program-id 97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J ./target/verifiable/signals_breakout_contracts.so --provider.cluster devnet",
+    "verify:dev": "anchor build --verifiable && anchor verify 97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J --provider.cluster devnet --skip-build",
     "clean": "rm -rf ./target",
     "build:clean": "anchor clean && anchor build",
     "build:wasm": "bash build-wasm.sh",

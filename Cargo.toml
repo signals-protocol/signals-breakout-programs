@@ -1,4 +1,11 @@
+[package]
+name = "signals_workspace_meta"
+version = "0.1.0"
+edition = "2021"
+publish = false   # 실수로 크레이트 업로드 방지
+
 [workspace]
+name = "signals-breakout-contracts"
 members = [
     "programs/*"
 ]

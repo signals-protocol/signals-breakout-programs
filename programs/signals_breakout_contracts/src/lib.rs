@@ -82,35 +82,4 @@ pub mod range_bet_program {
         msg!("Transfer Position");
         instructions::transfer_position::transfer_position(ctx, market_id, bin_indices, amounts)
     }
-
-    // View functions (instructions for simulation)
-    pub fn calculate_bin_buy_cost(
-        ctx: Context<CalculateBinBuyCost>,
-        _market_id: u64,
-        index: u16,
-        amount: u64,
-    ) -> Result<u64> {
-        msg!("Calculate Bin Buy Cost");
-        instructions::view_functions::calculate_bin_buy_cost(ctx, index, amount)
-    }
-
-    pub fn calculate_x_for_bin(
-        ctx: Context<CalculateXForBin>,
-        _market_id: u64,
-        index: u16,
-        cost: u64,
-    ) -> Result<u64> {
-        msg!("Calculate X for Bin");
-        instructions::view_functions::calculate_x_for_bin(ctx, index, cost)
-    }
-
-    pub fn calculate_bin_sell_cost(
-        ctx: Context<CalculateBinSellCost>,
-        _market_id: u64,
-        index: u16,
-        amount: u64,
-    ) -> Result<u64> {
-        msg!("Calculate Bin Sell Cost");
-        instructions::view_functions::calculate_bin_sell_cost(ctx, index, amount)
-    }
 }
