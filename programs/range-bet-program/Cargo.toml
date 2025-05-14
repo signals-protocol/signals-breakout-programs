@@ -1,12 +1,12 @@
 [package]
-name = "signals_breakout_contracts"
+name = "range-bet-program"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "signals_breakout_contracts"
+name = "range_bet_program"
 
 [features]
 default = ["init-if-needed"]

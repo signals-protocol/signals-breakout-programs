@@ -1231,6 +1231,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "range-bet-program"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "range-bet-math-core",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1415,15 +1424,6 @@ name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
-
-[[package]]
-name = "signals_breakout_contracts"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "range-bet-math-core",
-]
 
 [[package]]
 name = "signals_workspace_meta"
