@@ -518,6 +518,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "collateral_token_faucet"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

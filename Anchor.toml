@@ -5,10 +5,12 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
+[programs.devnet]
+collateral_token_faucet = "DDFXv1hETR8pQSpNbzCxTX7jm1Hr57V4oihDGosXQfgC"
 range_bet_program = "97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J"
 
-[programs.devnet]
+[programs.localnet]
+collateral_token_faucet = "DDFXv1hETR8pQSpNbzCxTX7jm1Hr57V4oihDGosXQfgC"
 range_bet_program = "97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J"
 
 [registry]
@@ -16,26 +18,14 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "devnet"
-wallet = "/Users/whworjs/.config/solana/id.json"
-
-[scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-account-fetch = "node scripts/fetch-accounts.js"
-init-market = "node scripts/init-market.js"
-buy-tokens = "node scripts/buy-tokens.js"
-close-market = "node scripts/close-market.js"
-
-[package]
-name = "signals-breakout-contracts"
-version = "0.1.0"
-description = "Signals Breakout Contracts"
-homepage = "https://github.com/signals-protocol/signals-breakout-contracts"
-repository = "https://github.com/signals-protocol/signals-breakout-contracts"
-authors = ["Signals Team"]
-license = "Apache-2.0"
+wallet = "~/.config/solana/id.json"
 
 [workspace]
-name = "signals-breakout-contracts"
-members = [
-    "programs/range-bet-program"
-]
+members = ["programs/range-bet-program", "programs/collateral_token_faucet"]
+
+[scripts]
+account-fetch = "node scripts/fetch-accounts.js"
+buy-tokens = "node scripts/buy-tokens.js"
+close-market = "node scripts/close-market.js"
+init-market = "node scripts/init-market.js"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
