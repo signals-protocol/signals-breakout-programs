@@ -1,6 +1,6 @@
 # Range Bet Math Core - TypeScript/JavaScript Guide
 
-This document explains how to use the `range-bet-math-core` npm package in TypeScript/JavaScript environments. This package is a WASM implementation of the core mathematical library for the Signals Breakout Contracts protocol.
+This guide explains how to use the `range-bet-math-core` npm package in JavaScript/TypeScript applications.
 
 ## Installation
 
@@ -10,9 +10,21 @@ npm install range-bet-math-core
 yarn add range-bet-math-core
 ```
 
+## API Overview
+
+All functions accept `BigInt` type inputs and return `BigInt` results. The library provides:
+
+| Function                     | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `calculateBinBuyCost`        | Calculate cost to buy tokens in a single bin         |
+| `calculateBinSellCost`       | Calculate revenue from selling tokens in a bin       |
+| `calculateMultiBinsBuyCost`  | Calculate cost to buy tokens across multiple bins    |
+| `calculateMultiBinsSellCost` | Calculate revenue from selling across multiple bins  |
+| `calculateXForMultiBins`     | Calculate maximum purchasable tokens within a budget |
+
 ## Basic Usage
 
-All functions accept `BigInt` type inputs and return `BigInt` type results.
+### Single Bin Calculations
 
 ```typescript
 import { calculateBinBuyCost, calculateBinSellCost } from "range-bet-math-core";
@@ -26,9 +38,9 @@ const revenue = calculateBinSellCost(100n, 500n, 1000n);
 console.log(`Sale revenue: ${revenue}`);
 ```
 
-## Using Multiple Bin Calculation Functions
+### Multiple Bin Calculations
 
-For multiple bin calculations, you must pass bin arrays using `BigUint64Array`.
+For multiple bin calculations, you must use `BigUint64Array` for the bin array:
 
 ```typescript
 import {
@@ -48,9 +60,9 @@ const revenue = calculateMultiBinsSellCost(50n, bins, 1000n);
 console.log(`Multiple bins sale revenue: ${revenue}`);
 ```
 
-## Calculating Maximum Purchasable Token Quantity
+### Maximum Token Calculation
 
-You can calculate the maximum token quantity purchasable with a given budget.
+Calculate the maximum token quantity purchasable within a budget:
 
 ```typescript
 import { calculateXForMultiBins } from "range-bet-math-core";
@@ -64,32 +76,22 @@ const x = calculateXForMultiBins(budget, bins, 1000n);
 console.log(`Maximum purchasable token quantity: ${x}`);
 ```
 
-## Using in React
+## Framework Integration
 
-Here's a simple example of using the package in a React application.
+### React Example
 
 ```typescript
 import React, { useState, useEffect } from "react";
-import {
-  calculateBinBuyCost,
-  calculateMultiBinsBuyCost,
-} from "range-bet-math-core";
+import { calculateBinBuyCost } from "range-bet-math-core";
 
 function BettingCalculator() {
   const [amount, setAmount] = useState(100);
-  const [singleBinCost, setSingleBinCost] = useState<string | null>(null);
-  const [multiBinsCost, setMultiBinsCost] = useState<string | null>(null);
+  const [cost, setCost] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      // Single bin calculation
-      const cost = calculateBinBuyCost(BigInt(amount), 500n, 1000n);
-      setSingleBinCost(cost.toString());
-
-      // Multiple bins calculation
-      const bins = new BigUint64Array([300n, 400n, 500n]);
-      const multiCost = calculateMultiBinsBuyCost(BigInt(amount), bins, 1000n);
-      setMultiBinsCost(multiCost.toString());
+      const calculatedCost = calculateBinBuyCost(BigInt(amount), 500n, 1000n);
+      setCost(calculatedCost.toString());
     } catch (error) {
       console.error("Calculation error:", error);
     }
@@ -105,19 +107,16 @@ function BettingCalculator() {
         min="1"
       />
       <div>
-        <p>Single bin purchase cost: {singleBinCost}</p>
-        <p>Multiple bins purchase cost: {multiBinsCost}</p>
+        <p>Purchase cost: {cost}</p>
       </div>
     </div>
   );
 }
-
-export default BettingCalculator;
 ```
 
-## Using in Next.js
+### Next.js Integration
 
-In Next.js, you should only use this package in client-side code.
+In Next.js, use the "use client" directive for client-side code:
 
 ```typescript
 "use client";
@@ -146,16 +145,28 @@ export default function BettingComponent() {
 }
 ```
 
-## Important Notes
+## Error Handling
 
-- All function inputs and return values are of `BigInt` type.
-- When passing bin arrays, you must use `BigUint64Array`.
-- Runtime errors may occur with invalid inputs (e.g., q > t).
-- Always implement error handling.
+Always implement proper error handling. Common error scenarios include:
+
+- $q$ is greater than $T$ (bin quantity greater than total supply)
+- Division by zero in calculations
+- Overflow in logarithm calculation
+- Invalid parameters (negative values or non-BigInt values)
+
+```typescript
+try {
+  const cost = calculateBinBuyCost(100n, 500n, 1000n);
+  // Process the result
+} catch (error) {
+  console.error("Failed to calculate cost:", error);
+  // Handle the error appropriately
+}
+```
 
 ## TypeScript Type Definitions
 
-The TypeScript type definitions included in the package are:
+The library includes these TypeScript definitions:
 
 ```typescript
 export function calculateBinBuyCost(x: bigint, q: bigint, t: bigint): bigint;
@@ -177,22 +188,38 @@ export function calculateXForMultiBins(
 ): bigint;
 ```
 
+## Important Notes
+
+- All function inputs and return values are of `BigInt` type
+- When passing bin arrays, you must use `BigUint64Array`
+- Runtime errors occur with invalid inputs (e.g., q > t)
+- The package is designed for browser environments
+- For server-side rendering, ensure proper WebAssembly support
+
 ## Mathematical Model
 
-The core price formula is an integral:
+The core formula implemented by this library is:
 
-```
-Cost = ∫(q+t)/(T+t) dt, from t=0 to t=x
-```
-
-Which evaluates to:
-
-```
-Cost = x + (q-T)*ln((T+x)/T)
-```
+$$\int_{t=0}^{x} \frac{q+t}{T+t} \, dt = x + (q-T) \ln\left(\frac{T+x}{T}\right)$$
 
 Where:
 
-- `q`: Current token quantity in the bin
-- `T`: Total token supply in the market
-- `x`: Token quantity to purchase
+- $q$: Current token quantity in the bin
+- $T$: Total token supply in the market
+- $x$: Token quantity to purchase
+
+This formula has several important properties:
+
+1. The cost increases as the bin quantity increases, making popular bets more expensive
+2. The cost decreases relative to total market supply, balancing the impact of large markets
+3. The cost is always positive for valid inputs
+4. When $q=0$ (new bin), the cost is less than $x$, providing an incentive for early participants
+5. The formula produces a probability distribution over all possible price ranges
+
+> **Note**: The mathematical implementation uses floating-point calculations internally while maintaining an integer-based API to ensure accuracy in logarithmic operations.
+
+## Related Documentation
+
+- [Mathematical Model](../../../docs/math.md) - Detailed explanation of the mathematical formulas
+- [WASM Package README](../pkg-wasm/README.md) - npm package documentation
+- [API Reference](../../../docs/api-reference.md) - Complete API reference

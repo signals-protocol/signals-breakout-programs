@@ -45,6 +45,33 @@ After deployment, the program IDs are:
 - Range Bet Program: `97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J`
 - Collateral Token Faucet: `DDFXv1hETR8pQSpNbzCxTX7jm1Hr57V4oihDGosXQfgC`
 
+### Getting Test Tokens
+
+For development and testing, you can use the Collateral Token Faucet to mint test tokens:
+
+```typescript
+// Initialize the faucet program
+const faucetProgramId = new PublicKey(
+  "DDFXv1hETR8pQSpNbzCxTX7jm1Hr57V4oihDGosXQfgC"
+);
+const faucetProgram = new Program(faucetIdl, faucetProgramId, provider);
+
+// Mint test tokens (1000 tokens with 6 decimals = 1,000,000,000 raw units)
+await faucetProgram.methods
+  .mintCollateralTokens(new BN(1_000_000_000))
+  .accounts({
+    mint: COLLATERAL_MINT,
+    receiver: userTokenAccount,
+    user: wallet.publicKey,
+  })
+  .signers([wallet])
+  .rpc();
+
+console.log("Test tokens minted successfully");
+```
+
+For more details about the faucet program, see the [Collateral Token Faucet Documentation](./collateral-token-faucet.md).
+
 ## Program Initialization
 
 Initialize the program before first use:
@@ -364,4 +391,6 @@ const maxTokens = mathCore.calculateXForMultiBins(
 );
 ```
 
-This allows client applications to perform the same cost calculations as the on-chain program, ensuring consistency between frontend and backend.
+For detailed documentation, installation instructions, and usage examples of the WASM package, see the [WASM Package README](../programs/range-bet-program/pkg-wasm/README.md).
+
+## Example Scripts

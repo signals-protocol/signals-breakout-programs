@@ -393,6 +393,8 @@ const sellCost = await program.methods
 
 The mathematical functions are implemented in a separate `math-core` crate to allow reuse across different contexts. This crate provides functions for both on-chain and WASM (client-side) use.
 
+The WASM build is published as an NPM package named `range-bet-math-core`. For detailed documentation and usage examples of the WASM package, see the [WASM Package README](../programs/range-bet-program/pkg-wasm/README.md).
+
 ### Core Functions
 
 #### calculate_bin_buy_cost
@@ -545,3 +547,74 @@ pub struct CollateralOut {
     pub amount: u64,
 }
 ```
+
+## Collateral Token Faucet API
+
+### Program ID
+
+```
+DDFXv1hETR8pQSpNbzCxTX7jm1Hr57V4oihDGosXQfgC
+```
+
+### Account Structures
+
+#### FaucetPDA
+
+A PDA derived from the seed "collateral_faucet" that serves as the mint authority for the collateral token.
+
+```rust
+// This is a PDA without data structure - UncheckedAccount is used in the account validation
+```
+
+### Instructions
+
+#### initialize
+
+Initializes the faucet program.
+
+**Parameters**: None
+
+**Accounts**:
+
+- No specific accounts required
+
+**Example**:
+
+```typescript
+await faucetProgram.methods.initialize().rpc();
+```
+
+#### mintCollateralTokens
+
+Mints collateral tokens to a specified receiver.
+
+**Parameters**:
+
+- `amount`: u64 - The amount of tokens to mint (in raw units, accounting for decimals)
+
+**Accounts**:
+
+- `mint`: Collateral token mint account (must have Faucet PDA as authority)
+- `faucet_pda`: The PDA that acts as mint authority
+- `receiver`: Token account to receive the minted tokens
+- `user`: The transaction signer (pays fees)
+- `token_program`: Token program
+- `system_program`: System program
+- `associated_token_program`: Associated token program
+- `rent`: Rent Sysvar
+
+**Example**:
+
+```typescript
+await faucetProgram.methods
+  .mintCollateralTokens(new BN(1_000_000_000))
+  .accounts({
+    mint: COLLATERAL_MINT,
+    receiver: userTokenAccount,
+    user: wallet.publicKey,
+  })
+  .signers([wallet])
+  .rpc();
+```
+
+For detailed information about the Collateral Token Faucet, see the [Collateral Token Faucet Documentation](./collateral-token-faucet.md).

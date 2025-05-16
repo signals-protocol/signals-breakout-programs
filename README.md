@@ -1,14 +1,32 @@
 # Signals Breakout Programs - Solana Market Prediction Protocol
 
-Signals Breakout Programs is a prediction market protocol operating on the Solana blockchain that implements a (q+t)/(T+t) integral price formula using a Uniswap V3-style tick-based bin system. This protocol can operate multiple prediction markets simultaneously with a single program and provides unique pricing mechanisms through special betting cost calculations.
+Signals Breakout Programs is a prediction market protocol operating on the Solana blockchain that implements a $(q+t)/(T+t)$ integral price formula using a Uniswap V3-style tick-based bin system. This protocol can operate multiple prediction markets simultaneously with a single program and provides unique pricing mechanisms through special betting cost calculations.
 
 ## Key Features
 
 - Operate multiple prediction markets with a single manager contract
 - Price range settings using Uniswap V3 tick structure (ranges/bins)
-- Sophisticated betting cost calculation through the (q+t)/(T+t) integral formula
+- Sophisticated betting cost calculation through the $(q+t)/(T+t)$ integral formula
 - Betting across various ranges possible
 - Winning range setting and reward distribution system
+
+## Mathematical Background
+
+The betting cost is calculated based on the following integral:
+
+$$\int_{t=0}^{x} \frac{q+t}{T+t} \, dt = x + (q-T) \ln\left(\frac{T+x}{T}\right)$$
+
+Where:
+
+- $q$: Current amount of tokens in the bin
+- $T$: Total supply of tokens in the entire market
+- $x$: Amount of tokens to purchase
+
+This formula means that the betting cost adjusts according to the market's liquidity. The more popular an interval is, the higher the cost to bet on it.
+
+### Math Core
+
+The mathematical functions are implemented in a separate `math-core` crate that you can find in the `programs/range-bet-program/math-core` directory. This crate can be compiled both for on-chain use (BPF) and as a WASM module for client-side applications. For more details, see the [Math Core README](programs/range-bet-program/math-core/README.md).
 
 ## Architecture
 
@@ -47,7 +65,7 @@ Signals Breakout Programs is a prediction market protocol operating on the Solan
 2. **Token Purchase (buyTokens)**:
 
    - Users bet on various bins
-   - Betting cost calculation through the (q+t)/(T+t) integral formula
+   - Betting cost calculation through the $(q+t)/(T+t)$ integral formula
 
 3. **Market Closing (closeMarket)**:
 
@@ -206,25 +224,29 @@ await program.methods
   .rpc();
 ```
 
-## Mathematical Background
+### Using the Collateral Token Faucet
 
-The betting cost is calculated based on the following integral:
+For development and testing purposes, the protocol includes a collateral token faucet program that allows users to mint test tokens:
 
-![Integral Formula](https://latex.codecogs.com/png.latex?%5Cint_%7Bt%3D0%7D%5E%7Bx%7D%20%5Cfrac%7Bq%20%2B%20t%7D%7BT%20%2B%20t%7D%20%5C%2C%5Cmathrm%7Bd%7Dt%20%5C%3B%3D%5C%3B%20x%20%2B%20%28q%20-%20T%29%5C%2C%5Cln%5C%21%5CBigl%28%5Cfrac%7BT%20%2B%20x%7D%7BT%7D%5CBigr%29)
+```typescript
+await faucetProgram.methods
+  .mintCollateralTokens(
+    new BN(1000000000) // Amount of tokens to mint (e.g., 1000 tokens with 6 decimals)
+  )
+  .accounts({
+    mint: COLLATERAL_MINT,
+    receiver: userTokenAccount,
+    user: wallet.publicKey,
+  })
+  .signers([wallet])
+  .rpc();
+```
 
-- `q`: Current amount of tokens in the bin
-- `T`: Total supply of tokens in the entire market
-- `x`: Amount of tokens to purchase
+This faucet program is intended for development environments only and simplifies testing by providing collateral tokens to participants. For detailed documentation on the faucet program, see the [Collateral Token Faucet Documentation](docs/collateral-token-faucet.md).
 
-This formula means that the betting cost adjusts according to the market's liquidity. The more popular an interval is, the higher the cost to bet on it.
+### WASM Package for Frontend
 
-### Math Core
-
-The mathematical functions are implemented in a separate `math-core` crate that you can find in the `programs/range-bet-program/math-core` directory. This crate can be compiled both for on-chain use (BPF) and as a WASM module for client-side applications. For more details, see the [Math Core README](programs/range-bet-program/math-core/README.md).
-
-#### WASM Package for Frontend
-
-The Math Core is also available as an npm package that can be used in frontend applications. The package provides the same mathematical functions as the on-chain program, allowing cost calculations client-side before submitting transactions.
+The Math Core is also available as an npm package named `range-bet-math-core` that can be used in frontend applications. The package provides the same mathematical functions as the on-chain program, allowing cost calculations client-side before submitting transactions. For detailed documentation, see the [WASM Package README](programs/range-bet-program/pkg-wasm/README.md).
 
 To build the WASM package:
 
@@ -253,6 +275,27 @@ const cost = calculateBinBuyCost(100n, 500n, 1000n);
 const bins = new BigUint64Array([300n, 400n, 500n]);
 const multiCost = calculateMultiBinsBuyCost(100n, bins, 1000n);
 ```
+
+## Project Documentation
+
+This repository includes several documentation files organized by purpose:
+
+### Core Concepts
+
+- [Architecture](docs/architecture.md) - System architecture, components, and their interactions
+- [Mathematical Model](docs/math.md) - Theoretical foundation and formulas of the pricing model
+
+### Developer Resources
+
+- [API Reference](docs/api-reference.md) - Complete instruction and account reference for both programs
+- [Usage Guide](docs/usage.md) - Code examples and integration patterns for developers
+- [Collateral Token Faucet](docs/collateral-token-faucet.md) - Test token utility for development environments
+
+### Math Core Documentation
+
+- [Math Core README](programs/range-bet-program/math-core/README.md) - Rust implementation details
+- [TypeScript Guide](programs/range-bet-program/math-core/GUIDE.md) - Client-side TypeScript integration
+- [WASM Package README](programs/range-bet-program/pkg-wasm/README.md) - npm package usage and examples
 
 ## License
 

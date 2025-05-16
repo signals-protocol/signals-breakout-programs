@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/range-bet-math-core.svg)](https://www.npmjs.com/package/range-bet-math-core)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-A WebAssembly-powered library providing the mathematical core for the Signals Breakout Contracts protocol. This library implements essential mathematical functions for calculating betting costs and revenues using the (q+t)/(T+t) integral formula.
+A WebAssembly-powered library that implements the mathematical functions for the Signals Protocol. This package provides cost calculation functions for prediction market betting.
 
 ## Installation
 
@@ -13,75 +13,17 @@ npm install range-bet-math-core
 yarn add range-bet-math-core
 ```
 
-## Usage
-
-The library provides a set of functions for calculating purchase costs and sale revenues in prediction markets. All functions accept and return `BigInt` values.
-
-### Basic Functions
-
-```typescript
-import { calculateBinBuyCost, calculateBinSellCost } from "range-bet-math-core";
-
-// Calculate purchase cost for a single bin
-const cost = calculateBinBuyCost(100n, 500n, 1000n);
-console.log(`Purchase cost: ${cost}`);
-
-// Calculate sale revenue for a single bin
-const revenue = calculateBinSellCost(100n, 500n, 1000n);
-console.log(`Sale revenue: ${revenue}`);
-```
-
-### Multiple Bin Operations
-
-For multiple bin calculations, you must pass bin arrays using `BigUint64Array`:
-
-```typescript
-import {
-  calculateMultiBinsBuyCost,
-  calculateMultiBinsSellCost,
-} from "range-bet-math-core";
-
-// Create bin array using BigUint64Array
-const bins = new BigUint64Array([300n, 400n, 500n]);
-
-// Calculate purchase cost across multiple bins
-const cost = calculateMultiBinsBuyCost(100n, bins, 1000n);
-console.log(`Multiple bins purchase cost: ${cost}`);
-
-// Calculate sale revenue across multiple bins
-const revenue = calculateMultiBinsSellCost(50n, bins, 1000n);
-console.log(`Multiple bins sale revenue: ${revenue}`);
-```
-
-### Calculate Maximum Purchasable Quantity
-
-You can calculate the maximum token quantity purchasable with a given budget:
-
-```typescript
-import { calculateXForMultiBins } from "range-bet-math-core";
-
-// Set budget and bin array
-const budget = 10000n;
-const bins = new BigUint64Array([300n, 400n, 500n]);
-
-// Calculate maximum purchasable token quantity
-const x = calculateXForMultiBins(budget, bins, 1000n);
-console.log(`Maximum purchasable token quantity: ${x}`);
-```
-
 ## API Reference
 
-### Core Functions
+| Function                     | Description                               | Parameters                                      | Return Type |
+| ---------------------------- | ----------------------------------------- | ----------------------------------------------- | ----------- |
+| `calculateBinBuyCost`        | Calculate cost to buy tokens in a bin     | `x: bigint, q: bigint, t: bigint`               | `bigint`    |
+| `calculateBinSellCost`       | Calculate revenue from selling tokens     | `x: bigint, q: bigint, t: bigint`               | `bigint`    |
+| `calculateMultiBinsBuyCost`  | Calculate cost for multiple bins          | `x: bigint, qs: BigUint64Array, t: bigint`      | `bigint`    |
+| `calculateMultiBinsSellCost` | Calculate revenue for multiple bins       | `x: bigint, qs: BigUint64Array, t: bigint`      | `bigint`    |
+| `calculateXForMultiBins`     | Find max tokens purchasable within budget | `budget: bigint, qs: BigUint64Array, t: bigint` | `bigint`    |
 
-| Function                     | Description                                                 | Parameters                                      | Return Type |
-| ---------------------------- | ----------------------------------------------------------- | ----------------------------------------------- | ----------- |
-| `calculateBinBuyCost`        | Calculates cost to buy tokens in a single bin               | `x: bigint, q: bigint, t: bigint`               | `bigint`    |
-| `calculateBinSellCost`       | Calculates revenue from selling tokens in a single bin      | `x: bigint, q: bigint, t: bigint`               | `bigint`    |
-| `calculateMultiBinsBuyCost`  | Calculates total cost to buy tokens across multiple bins    | `x: bigint, qs: BigUint64Array, t: bigint`      | `bigint`    |
-| `calculateMultiBinsSellCost` | Calculates revenue from selling tokens across multiple bins | `x: bigint, qs: BigUint64Array, t: bigint`      | `bigint`    |
-| `calculateXForMultiBins`     | Finds maximum purchasable token quantity within a budget    | `budget: bigint, qs: BigUint64Array, t: bigint` | `bigint`    |
-
-Parameters:
+Where:
 
 - `x`: Amount of tokens to purchase/sell
 - `q`: Current token quantity in the bin
@@ -89,9 +31,45 @@ Parameters:
 - `t`: Total token quantity in the market
 - `budget`: Available budget for purchasing tokens
 
-## Framework Integration
+## Usage Examples
 
-### React Example
+### Basic Cost Calculation
+
+```typescript
+import { calculateBinBuyCost } from "range-bet-math-core";
+
+// Calculate purchase cost
+const cost = calculateBinBuyCost(100n, 500n, 1000n);
+console.log(`Purchase cost: ${cost}`);
+```
+
+### Multiple Bins Calculation
+
+```typescript
+import { calculateMultiBinsBuyCost } from "range-bet-math-core";
+
+// Create bin array using BigUint64Array (required)
+const bins = new BigUint64Array([300n, 400n, 500n]);
+
+// Calculate purchase cost across multiple bins
+const cost = calculateMultiBinsBuyCost(100n, bins, 1000n);
+console.log(`Multiple bins purchase cost: ${cost}`);
+```
+
+### Finding Maximum Purchasable Amount
+
+```typescript
+import { calculateXForMultiBins } from "range-bet-math-core";
+
+const budget = 10000n;
+const bins = new BigUint64Array([300n, 400n, 500n]);
+
+// Calculate maximum tokens purchasable with budget
+const x = calculateXForMultiBins(budget, bins, 1000n);
+console.log(`Maximum purchasable: ${x} tokens`);
+```
+
+## React Integration Example
 
 ```typescript
 import React, { useState, useEffect } from "react";
@@ -127,10 +105,10 @@ function BettingCalculator() {
 }
 ```
 
-### Next.js Example
+## Next.js Integration Example
 
 ```typescript
-"use client";
+"use client"; // Important: only use in client components
 
 import { useState, useEffect } from "react";
 import { calculateBinBuyCost } from "range-bet-math-core";
@@ -158,30 +136,35 @@ export default function BettingComponent() {
 
 ## Important Notes
 
-- All function inputs and return values are of `BigInt` type
-- When passing bin arrays, you must use `BigUint64Array`
-- Runtime errors may occur with invalid inputs (e.g., q > t)
-- Always implement error handling
+- All functions require `BigInt` inputs and return `BigInt` values
+- Arrays must be passed as `BigUint64Array` instances
+- This package is for client-side use (browsers); server-side requires additional configuration
+- Always implement error handling as invalid inputs will throw errors
+- Common error cases: `q > t`, division by zero, overflow in calculations
 
-## Mathematical Model
+## Mathematical Background
 
-The core price formula is an integral:
+This library implements the $(q+t)/(T+t)$ integral formula:
 
-```
-Cost = ∫(q+t)/(T+t) dt, from t=0 to t=x
-```
-
-Which evaluates to:
-
-```
-Cost = x + (q-T)*ln((T+x)/T)
-```
+$$\int_{t=0}^{x} \frac{q+t}{T+t} \, dt = x + (q-T) \ln\left(\frac{T+x}{T}\right)$$
 
 Where:
 
-- `q`: Current token quantity in the bin
-- `T`: Total token supply in the market
-- `x`: Token quantity to purchase
+- $q$: Current token quantity in the bin
+- $T$: Total token supply in the market
+- $x$: Token quantity to purchase
+
+> **Note**: While the API uses integer values (BigInt), the underlying WASM module performs floating-point calculations internally for accurate logarithmic operations.
+
+For a detailed explanation of the mathematical model:
+
+- [Mathematical Model Documentation](../../docs/math.md)
+- [Implementation Details](../math-core/README.md)
+
+## Additional Documentation
+
+- [TypeScript Guide](../math-core/GUIDE.md) - More detailed usage guide
+- [Signals Protocol](https://github.com/signals-protocol/signals) - Main project
 
 ## License
 

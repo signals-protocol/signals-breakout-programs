@@ -1,30 +1,24 @@
 # Range Bet Math Core
 
-This crate implements the mathematical core for the Signals Breakout Contracts protocol. It provides the essential mathematical functions for calculating betting costs using the (q+t)/(T+t) integral formula.
+This crate implements the mathematical core for the Signals Protocol. It provides functions for calculating betting costs using the $(q+t)/(T+t)$ integral formula.
 
-## Features
+## Implementation Features
 
-- Configurable build targets (on-chain BPF and WASM)
-- Robust mathematical implementation with overflow protection
-- Complete test suite including property-based tests
-
-## JavaScript/TypeScript Usage
-
-If you're using this library from JavaScript or TypeScript with the WASM build, please refer to the [TypeScript Guide](./GUIDE.md) for usage instructions and examples.
+- **Dual compilation targets**: Both on-chain BPF (Solana) and WASM (browser)
+- **Overflow protection**: Robust error handling for numerical edge cases
+- **Comprehensive testing**: Unit tests, benchmarks, and property-based tests
 
 ## Core Functions
 
-The crate exposes the following core mathematical functions:
+The crate exposes these primary functions:
 
 ### `calculate_bin_buy_cost`
-
-Calculates the cost to buy tokens in a single bin.
 
 ```rust
 pub fn calculate_bin_buy_cost(x: u64, q: u64, t: u64) -> Result<u64>
 ```
 
-Where:
+Calculates the cost to buy tokens in a single bin, where:
 
 - `x`: Amount of tokens to purchase
 - `q`: Current token quantity in the bin
@@ -32,55 +26,76 @@ Where:
 
 ### `calculate_bin_sell_cost`
 
-Calculates the revenue from selling tokens in a single bin.
-
 ```rust
 pub fn calculate_bin_sell_cost(x: u64, q: u64, t: u64) -> Result<u64>
 ```
 
-### `calculate_multi_bins_buy_cost`
+Calculates the revenue from selling tokens in a bin.
 
-Calculates the total cost to buy tokens across multiple bins.
+### `calculate_multi_bins_buy_cost`
 
 ```rust
 pub fn calculate_multi_bins_buy_cost(x: u64, qs: &[u64], t: u64) -> Result<u64>
 ```
 
-### `calculate_multi_bins_sell_cost`
+Calculates the total cost to buy tokens across multiple bins.
 
-Calculates the revenue from selling tokens across multiple bins.
+### `calculate_multi_bins_sell_cost`
 
 ```rust
 pub fn calculate_multi_bins_sell_cost(x: u64, qs: &[u64], t: u64) -> Result<u64>
 ```
 
-### `calculate_x_for_multi_bins`
+Calculates the revenue from selling tokens across multiple bins.
 
-Inverse calculation - finds the maximum number of tokens that can be purchased within a budget.
+### `calculate_x_for_multi_bins`
 
 ```rust
 pub fn calculate_x_for_multi_bins(budget: u64, qs: &[u64], t: u64) -> Result<u64>
 ```
 
-## Mathematical Model
+Finds the maximum token quantity purchasable within a budget.
 
-The core price formula is an integral:
+## Technical Implementation Details
 
+### Numerical Implementation
+
+The library uses floating-point arithmetic (f64) internally for precision in logarithm calculations, while exposing an integer API:
+
+```rust
+// Example from the implementation
+let q_f64 = q as f64;
+let t_f64 = t as f64;
+let x_f64 = x as f64;
+
+// Calculate ratio: (t+x)/t = 1 + x/t
+let ratio = (t_f64 + x_f64) / t_f64;
+// Calculate natural logarithm
+let ln_ratio = ratio.ln();
 ```
-Cost = ∫(q+t)/(T+t) dt, from t=0 to t=x
-```
 
-Which evaluates to:
+This approach:
 
-```
-Cost = x + (q-T)*ln((T+x)/T)
-```
+- Allows for accurate logarithmic calculations
+- Prevents overflows when calculating with large numbers
+- Maintains consistency between on-chain and client-side calculations
+- Returns integer values after rounding for deterministic results
 
-Where:
+### Error Handling
 
-- `q`: Current token quantity in the bin
-- `T`: Total token supply in the market
-- `x`: Token quantity to purchase
+The implementation handles these error cases:
+
+- Invalid bin state (q > t)
+- Selling more than available (x > q)
+- Selling more than supply (x > t)
+- Mathematical overflows
+- Calculation underflows
+
+### Algorithm Optimizations
+
+- Binary search for token quantity calculation
+- Sequential processing for multi-bin operations
+- Minimum value guarantees (always returning at least 1)
 
 ## Building
 
@@ -98,8 +113,6 @@ cargo build --features wasm --target wasm32-unknown-unknown
 
 ### As an npm package
 
-To build and publish as an npm package:
-
 ```bash
 # Build WASM with wasm-pack
 wasm-pack build --target bundler --out-dir ../pkg-wasm --features wasm
@@ -113,20 +126,43 @@ npm run publish:wasm
 
 ## Testing
 
-Run the comprehensive test suite:
-
 ```bash
+# Run all tests
 cargo test
-```
 
-Run benchmarks:
-
-```bash
+# Run benchmarks
 cargo test bench -- --nocapture
-```
 
-Run property-based tests:
-
-```bash
+# Run property-based tests
 cargo test property_tests
 ```
+
+## Integration with the Protocol
+
+This library is used in two ways:
+
+1. **On-chain calculations**: Used by Solana programs to calculate costs and revenues
+2. **Client-side simulation**: Used via WASM in frontend applications
+
+This architecture ensures that calculations remain consistent across on-chain and off-chain environments, providing a reliable user experience.
+
+## Mathematical Background
+
+The core price formula is based on the following integral:
+
+$$\int_{t=0}^{x} \frac{q+t}{T+t} \, dt = x + (q-T) \ln\left(\frac{T+x}{T}\right)$$
+
+Where:
+
+- $q$: Current token quantity in the bin
+- $T$: Total token supply in the market
+- $x$: Token quantity to purchase
+
+For a detailed explanation of the mathematical model and its properties:
+
+- [Mathematical Model Documentation](../../../docs/math.md)
+
+## Client Usage
+
+- [TypeScript/JavaScript Guide](./GUIDE.md) - How to use the WASM build
+- [WASM Package Documentation](../pkg-wasm/README.md) - npm package documentation

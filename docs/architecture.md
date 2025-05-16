@@ -78,6 +78,43 @@ Key features of the Math Core:
 - Functions for buying and selling in single and multiple bins
 - Robust error handling and overflow protection
 
+The WASM build is available as an NPM package named `range-bet-math-core` for use in client applications. For detailed documentation and examples, see the [WASM Package README](../programs/range-bet-program/pkg-wasm/README.md).
+
+### Collateral Token Faucet (Support Program)
+
+The Collateral Token Faucet is a utility program that provides test tokens for development and testing environments. It's designed to work alongside the main prediction market protocol.
+
+```rust
+#[program]
+pub mod collateral_token_faucet {
+    // Program instructions
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()>
+    pub fn mint_collateral_tokens(ctx: Context<MintCollateralTokens>, amount: u64) -> Result<()>
+}
+
+#[derive(Accounts)]
+pub struct MintCollateralTokens<'info> {
+    // Account validation
+    pub mint: Account<'info, Mint>,
+    pub faucet_pda: UncheckedAccount<'info>,
+    pub receiver: Account<'info, TokenAccount>,
+    pub user: Signer<'info>,
+    // System accounts
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub rent: Sysvar<'info, Rent>,
+}
+```
+
+The faucet program uses a PDA (Program Derived Address) as the mint authority for collateral tokens:
+
+1. **Faucet PDA**:
+   - Seeds: `["collateral_faucet"]`
+   - Role: Acts as the mint authority for the collateral token mint
+
+This utility program enables seamless testing of the prediction market protocol by allowing users to mint test tokens that can be used for betting.
+
 ## Main Instructions
 
 ### Program Initialization (initializeProgram)
