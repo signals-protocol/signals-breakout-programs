@@ -3,8 +3,8 @@ set -e
 
 # Current directory - project root
 ROOT_DIR="$(pwd)"
-WASM_SRC_DIR="$ROOT_DIR/programs/signals_breakout_contracts/math-core"
-WASM_PKG_DIR="$ROOT_DIR/programs/signals_breakout_contracts/pkg-wasm"
+WASM_SRC_DIR="$ROOT_DIR/programs/range-bet-program/math-core"
+WASM_PKG_DIR="$ROOT_DIR/programs/range-bet-program/pkg-wasm"
 
 # Store current version before build (in case we're updating)
 if [ -f "$WASM_PKG_DIR/package.json" ]; then
@@ -27,7 +27,7 @@ else
   # Create a default npm README if it doesn't exist
   echo "# range-bet-math-core" > "$TEMP_DIR/README.md"
   echo "" >> "$TEMP_DIR/README.md"
-  echo "WebAssembly-powered library for Signals Breakout Contracts protocol" >> "$TEMP_DIR/README.md"
+  echo "WebAssembly-powered library for Signals Breakout Programs protocol" >> "$TEMP_DIR/README.md"
 fi
 
 # Create a package.json template with updated version
@@ -36,10 +36,10 @@ cat > "$TEMP_DIR/package.json" << EOF
   "name": "range-bet-math-core",
   "type": "module",
   "version": "$CURRENT_VERSION",
-  "description": "Mathematical core library for Signals Breakout Contracts protocol",
+  "description": "Mathematical core library for Signals Breakout Programs protocol",
   "repository": {
     "type": "git",
-    "url": "https://github.com/signals-protocol/signals-breakout-contracts/tree/main/programs/signals_breakout_contracts/math-core"
+    "url": "https://github.com/signals-protocol/signals-breakout-programs/tree/main/programs/range-bet-program/math-core"
   },
   "keywords": [
     "solana",

@@ -1,6 +1,6 @@
-# Signals Breakout Contracts - Solana Market Prediction Protocol
+# Signals Breakout Programs - Solana Market Prediction Protocol
 
-Signals Breakout Contracts is a prediction market protocol operating on the Solana blockchain that implements a (q+t)/(T+t) integral price formula using a Uniswap V3-style tick-based bin system. This protocol can operate multiple prediction markets simultaneously with a single contract and provides unique pricing mechanisms through special betting cost calculations.
+Signals Breakout Programs is a prediction market protocol operating on the Solana blockchain that implements a (q+t)/(T+t) integral price formula using a Uniswap V3-style tick-based bin system. This protocol can operate multiple prediction markets simultaneously with a single program and provides unique pricing mechanisms through special betting cost calculations.
 
 ## Key Features
 
@@ -73,8 +73,8 @@ Signals Breakout Contracts is a prediction market protocol operating on the Sola
 
 ```bash
 # Clone repository
-git clone https://github.com/signals-protocol/signals-breakout-contracts.git
-cd signals-breakout-contracts
+git clone https://github.com/signals-protocol/signals-breakout-programs.git
+cd signals-breakout-programs
 
 # Install dependencies
 yarn install
