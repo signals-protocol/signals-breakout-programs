@@ -23,12 +23,13 @@ Steps to set up the project and deploy the contract:
 3. Run local test validator:
 
    ```bash
-   yarn local-validator
+   solana-test-validator
    ```
 
 4. Deploy the contract:
    ```bash
-   yarn deploy
+   yarn build
+   anchor deploy
    ```
 
 ### Devnet Deployment
@@ -36,10 +37,13 @@ Steps to set up the project and deploy the contract:
 To deploy the contract to Solana Devnet:
 
 ```bash
-yarn deploy:devnet
+yarn deploy:dev
 ```
 
-After deployment, the program ID is `97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J`.
+After deployment, the program IDs are:
+
+- Range Bet Program: `97i8BgDJG6yZggN2Di5UnERs6X5PqYqnkSvkMdvw1d5J`
+- Collateral Token Faucet: `DDFXv1hETR8pQSpNbzCxTX7jm1Hr57V4oihDGosXQfgC`
 
 ## Program Initialization
 
@@ -315,15 +319,14 @@ For client-side applications, you can use the WASM version of the library:
 1. Build the WASM module:
 
 ```bash
-cd programs/signals_breakout_contracts/math-core
-cargo build --features wasm --target wasm32-unknown-unknown
+yarn build:wasm
 ```
 
 2. Import and use in your JavaScript/TypeScript application:
 
 ```typescript
 // Import the math-core WASM module
-import * as mathCore from "./path/to/math_core_wasm.js";
+import * as mathCore from "range-bet-math-core";
 
 // Calculate buying cost for a single bin
 const cost = mathCore.calculateBinBuyCost(
@@ -362,11 +365,3 @@ const maxTokens = mathCore.calculateXForMultiBins(
 ```
 
 This allows client applications to perform the same cost calculations as the on-chain program, ensuring consistency between frontend and backend.
-
-## Example Scripts
-
-The project provides the following useful scripts:
-
-- **create-markets.ts**: Create multiple prediction markets at once
-- **place-bets.ts**: Execute test bets
-- **fetch-accounts.js**: Query account information

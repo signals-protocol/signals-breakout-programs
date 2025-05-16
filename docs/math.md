@@ -27,7 +27,7 @@ Cost = x + (q-T)*ln((T+x)/T) = x + (q-T)*ln(1 + x/T)
 
 ## Implementation in Math Core
 
-The formula is implemented in the `math-core` crate, which is available at `programs/signals_breakout_contracts/math-core/`. The crate provides a set of functions for different use cases:
+The formula is implemented in the `math-core` crate, which is available at `programs/range-bet-program/math-core/`. The crate provides a set of functions for different use cases:
 
 ### Single Bin Operations
 

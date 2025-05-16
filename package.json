@@ -1,5 +1,5 @@
 {
-  "name": "signals-breakout-contracts",
+  "name": "signals-breakout-programs",
   "version": "0.1.0",
   "license": "ISC",
   "scripts": {
@@ -17,7 +17,6 @@
     "build:clean": "anchor clean && anchor build",
     "build:wasm": "bash build-wasm.sh",
     "idl:generate": "anchor build && anchor idl parse -f ./target/idl/range_bet_program.json -o ./target/types/range_bet_program.ts",
-    "account": "anchor run account-fetch",
     "create-markets": "ts-node scripts/create-markets.ts",
     "place-bets": "ts-node scripts/place-bets.ts",
     "publish:wasm": "cd programs/range-bet-program/pkg-wasm && npm publish --access public"

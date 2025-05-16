@@ -93,12 +93,6 @@ yarn build
 Run all tests:
 
 ```bash
-yarn test
-```
-
-Run specific tests:
-
-```bash
 yarn test:local
 ```
 
@@ -107,11 +101,12 @@ yarn test:local
 Deploy contracts to local development node:
 
 ```bash
-# Run local validator in a new terminal
-yarn local-validator
+# Start a local validator
+solana-test-validator
 
-# Run deployment in another terminal
-yarn deploy
+# Deploy
+yarn build
+anchor deploy
 ```
 
 ### Devnet Deployment
@@ -119,19 +114,19 @@ yarn deploy
 Deploy to Solana Devnet:
 
 ```bash
-yarn deploy:devnet
+yarn deploy:dev
 ```
 
-### Scripts
+### Program Upgrades
 
-You can interact with the contracts using various scripts:
+Upgrade programs on devnet:
 
 ```bash
-# Create markets
-yarn create-markets
+# Range Bet Program
+yarn upgrade:range-bet-program:dev
 
-# Execute bets
-yarn place-bets
+# Collateral Token Faucet
+yarn upgrade:collateral-token-faucet:dev
 ```
 
 ## System Operation
@@ -225,23 +220,27 @@ This formula means that the betting cost adjusts according to the market's liqui
 
 ### Math Core
 
-The mathematical functions are implemented in a separate `math-core` crate that you can find in the `programs/signals_breakout_contracts/math-core` directory. This crate can be compiled both for on-chain use (BPF) and as a WASM module for client-side applications. For more details, see the [Math Core README](programs/signals_breakout_contracts/math-core/README.md).
+The mathematical functions are implemented in a separate `math-core` crate that you can find in the `programs/range-bet-program/math-core` directory. This crate can be compiled both for on-chain use (BPF) and as a WASM module for client-side applications. For more details, see the [Math Core README](programs/range-bet-program/math-core/README.md).
 
 #### WASM Package for Frontend
 
 The Math Core is also available as an npm package that can be used in frontend applications. The package provides the same mathematical functions as the on-chain program, allowing cost calculations client-side before submitting transactions.
 
-Install the package:
+To build the WASM package:
 
 ```bash
-npm install range-bet-math-core
-# or
-yarn add range-bet-math-core
+yarn build:wasm
+```
+
+To publish the WASM package:
+
+```bash
+yarn publish:wasm
 ```
 
 Using the package in your project:
 
-````typescript
+```typescript
 import {
   calculateBinBuyCost,
   calculateMultiBinsBuyCost,
@@ -253,16 +252,7 @@ const cost = calculateBinBuyCost(100n, 500n, 1000n);
 // Calculate purchase cost for multiple bins
 const bins = new BigUint64Array([300n, 400n, 500n]);
 const multiCost = calculateMultiBinsBuyCost(100n, bins, 1000n);
-
-To build and publish the WASM package:
-
-```bash
-# Build WASM
-npm run build:wasm
-
-# Publish to NPM
-npm run publish:wasm
-````
+```
 
 ## License
 
