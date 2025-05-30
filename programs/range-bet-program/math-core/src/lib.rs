@@ -199,7 +199,7 @@ impl RangeBetMath {
         }
         
         // Set operation starting points: left is 0, right is maximum value
-        let mut right: u64 = u64::MAX / (qs.len() as u64 + 1);  // Maximum value to prevent overflow
+        let mut right: u64 = budget / (qs.len() as u64).max(1);  // Maximum value to prevent overflow
         let mut left: u64 = 0;
         
         // Simple unbounded binary search (controlled by termination condition)
@@ -221,10 +221,7 @@ impl RangeBetMath {
                         right = mid;
                     }
                 },
-                Err(_) => {
-                    // Reduce range if overflow occurs
-                    right = mid;
-                }
+                Err(_) => { right = mid - 1; continue; }
             }
         }
         

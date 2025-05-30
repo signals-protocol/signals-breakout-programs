@@ -1,7 +1,7 @@
 {
   "name": "range-bet-math-core",
   "type": "module",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Mathematical core library for Signals Breakout Programs protocol",
   "repository": {
     "type": "git",
