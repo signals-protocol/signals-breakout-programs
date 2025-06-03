@@ -7,5 +7,6 @@ pub mod x_for_multi_bins_tests;
 pub mod edge_cases_tests;
 pub mod property_tests;
 pub mod bench;
+pub mod budget_validation_test;
 
 // Common test module functions can be defined in this file. 

@@ -5,6 +5,14 @@ export function calculateBinSellCost(x: bigint, q: bigint, t: bigint): bigint;
 export function calculateMultiBinsBuyCost(x: bigint, qs: BigUint64Array, t: bigint): bigint;
 export function calculateMultiBinsSellCost(x: bigint, qs: BigUint64Array, t: bigint): bigint;
 export function calculateXForMultiBins(budget: bigint, qs: BigUint64Array, t: bigint): bigint;
+export function calculateBinBuyCostEvm(x_str: string, q_str: string, t_str: string): string;
+export function calculateBinSellCostEvm(x_str: string, q_str: string, t_str: string): string;
+export function calculateMultiBinsBuyCostEvm(x_str: string, qs_str: string, t_str: string): string;
+export function calculateMultiBinsSellCostEvm(x_str: string, qs_str: string, t_str: string): string;
+export function calculateXForMultiBinsEvm(budget_str: string, qs_str: string, t_str: string): string;
+export function isWithinU64Range(value_str: string): boolean;
+export function getMaxU64(): string;
+export function validateEvmValues(budget_str: string, qs_str: string, t_str: string): string;
 /**
  * Initialize Javascript logging and panic handler
  */

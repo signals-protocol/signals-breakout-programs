@@ -18,6 +18,10 @@ pub enum MathError {
     CannotSellMoreThanSupply,
     #[msg("Sell calculation underflow")]
     SellCalculationUnderflow,
+    #[msg("Can only sell entire supply if bin contains all tokens")]
+    CanOnlySellEntireSupplyIfBinContainsAllTokens,
+    #[msg("Underflow in sell calculation")]
+    UnderflowInSellCalculation,
 }
 
 /// Range-Bet Math library
@@ -85,55 +89,62 @@ impl RangeBetMath {
     /// @param t Total token quantity in the market
     /// @return Sale revenue
     pub fn calculate_bin_sell_cost(x: u64, q: u64, t: u64) -> Result<u64> {
-        // Input validation
+        // 1) Edge cases
         if x == 0 {
-            return Ok(0);
+            return Ok(0); // If sell amount is 0, return 0 revenue
         }
         
-        require!(x <= q, MathError::CannotSellMoreThanBin);
-        require!(x <= t, MathError::CannotSellMoreThanSupply);
+        // Domain validation: q <= t first
         require!(q <= t, MathError::InvalidBinState);
+        
+        // Special case: If x == t, we're selling the entire market supply
+        // This can only happen if q == t (the bin contains all tokens)
+        if x == t {
+            require!(q == t, MathError::CanOnlySellEntireSupplyIfBinContainsAllTokens);
+            return Ok(t); // When selling all tokens, return the total supply value
+        }
+        
+        // Domain validation: x <= q (after x == t check)
+        require!(x <= q, MathError::CannotSellMoreThanBin);
 
-        // If q = t, simply return x (coefficient of log term is 0)
+        // 2) If q = t, simply return x (coefficient of log term is 0)
         if q == t {
             return Ok(x);
         }
         
-        // Calculate directly with precise f64 for more stable calculation
+        // 3) Calculate directly with precise f64 for more stable calculation
         let q_f64 = q as f64;
         let t_f64 = t as f64;
         let x_f64 = x as f64;
         
-        // Check if t-x is 0
+        // 4) Calculate ( T / (T - x) )
         let t_minus_x_f64 = t_f64 - x_f64;
         if t_minus_x_f64 <= 0.0 {
             return Err(error!(MathError::SellCalculationUnderflow));
         }
         
-        // Calculate ratio and natural logarithm
         let ratio = t_f64 / t_minus_x_f64;
         let ln_ratio = ratio.ln();
         
-        // For q < t case: x - (t-q)*ln(t/(t-x))
-        let reduction = (t_f64 - q_f64) * ln_ratio;
+        // 5) Calculate x + (q - T)*ln( T / (T - x) )
+        let mut revenue_f64 = x_f64;
         
-        // Check to prevent underflow
-        let revenue_f64 = if reduction > x_f64 {
-            // In extreme cases, return minimum unit 1
-            1.0
-        } else {
-            x_f64 - reduction
-        };
-        
-        // If result is less than 0, return 1 (minimum unit)
-        if revenue_f64 <= 0.0 {
-            Ok(1)
-        } else {
-            // Round and convert to u64
-            let revenue = (revenue_f64 + 0.5) as u64;
-            // Return minimum value 1 if becomes 0
-            Ok(if revenue == 0 { 1 } else { revenue })
+        if q != t {
+            // Since T >= q, we know (q - T) <= 0, so we subtract
+            let t_minus_q = t_f64 - q_f64;
+            let reduction = t_minus_q * ln_ratio;
+            
+            // Prevent underflow - if the log term is too large compared to x, error
+            require!(reduction <= revenue_f64, MathError::UnderflowInSellCalculation);
+            
+            revenue_f64 = revenue_f64 - reduction;
         }
+        // If q == T, the (q - T) term is 0, so revenue = x
+
+        // Round and convert to u64
+        let revenue = (revenue_f64 + 0.5) as u64;
+        // Ensure minimum value of 1 when x > 0 (to prevent 0 revenue for valid sales)
+        Ok(if revenue == 0 && x > 0 { 1 } else { revenue })
     }
     
     /// Calculate cost of buying tokens in multiple bins sequentially
@@ -198,62 +209,54 @@ impl RangeBetMath {
             return Ok(0);
         }
         
-        // Set operation starting points: left is 0, right is maximum value
-        let mut right: u64 = budget / (qs.len() as u64).max(1);  // Maximum value to prevent overflow
+        // Start with a conservative estimate and expand systematically
         let mut left: u64 = 0;
+        let mut right: u64 = 1;
         
-        // Simple unbounded binary search (controlled by termination condition)
-        while right > left + 1 {
-            let mid = left + (right - left) / 2;
-            
-            // Calculate cost of middle value for all bins
-            match Self::calculate_multi_bins_buy_cost(mid, qs, t) {
-                Ok(calculated_cost) => {
-                    // If cost exactly matches budget, return immediately
-                    if calculated_cost == budget {
-                        return Ok(mid);
-                    }
-                    
-                    // Adjust search range
-                    if calculated_cost < budget {
-                        left = mid;
+        // Find a reasonable upper bound by doubling until we exceed budget
+        loop {
+            match Self::calculate_multi_bins_buy_cost(right, qs, t) {
+                Ok(cost) if cost <= budget => {
+                    left = right;
+                    if right > budget / 2 { // Prevent excessive expansion
+                        right = right.saturating_add(budget);
                     } else {
-                        right = mid;
+                        right = right.saturating_mul(2);
+                    }
+                    if right == left { // Overflow protection
+                        break;
                     }
                 },
-                Err(_) => { right = mid - 1; continue; }
+                _ => break, // Found upper bound or overflow
             }
         }
         
-        // After binary search ends, calculate costs for final left and right values
-        let left_cost = match Self::calculate_multi_bins_buy_cost(left, qs, t) {
-            Ok(c) => c,
-            Err(_) => 0 // Treat as 0 if error occurs
-        };
-        
-        let right_cost = match Self::calculate_multi_bins_buy_cost(right, qs, t) {
-            Ok(c) => c,
-            Err(_) => u64::MAX // Treat as maximum value if error occurs (to avoid selection)
-        };
-        
-        // Select maximum X value within budget
-        // If left is within budget
-        if left_cost <= budget {
-            // If right is also within budget, select the larger right
-            if right_cost <= budget {
-                return Ok(right);
+        // Now we have left (valid) and right (invalid or overflow)
+        // Perform precise binary search
+        while left + 1 < right {
+            let mid = left + (right - left) / 2;
+            
+            match Self::calculate_multi_bins_buy_cost(mid, qs, t) {
+                Ok(calculated_cost) => {
+                    if calculated_cost <= budget {
+                        left = mid; // mid is valid
+                    } else {
+                        right = mid; // mid is too expensive
+                    }
+                },
+                Err(_) => {
+                    right = mid; // Overflow, mid is too large
+                }
             }
-            // If only left is within budget, select left
-            return Ok(left);
-        }
-        // If only right is within budget (theoretically shouldn't happen)
-        else if right_cost <= budget {
-            return Ok(right);
         }
         
-        // If no suitable value is found in any case (very small budget)
-        Ok(0)
-    }
+        // Final validation - ensure the result doesn't exceed budget
+        match Self::calculate_multi_bins_buy_cost(left, qs, t) {
+            Ok(cost) if cost <= budget => Ok(left),
+            _ => Ok(0),
+        }
 }
+}
+
 
  

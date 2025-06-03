@@ -35,12 +35,25 @@ fn test_bin_sell_cost_exceed_bin() {
 
 #[test]
 fn test_bin_sell_cost_exceed_supply() {
-    // Selling more than total supply
+    // Selling more than total supply - this should now be caught by x == t special case
+    // Since x(1200) > t(1000), but q(1500) > t(1000), this should fail on InvalidBinState first
     let result = RangeBetMath::calculate_bin_sell_cost(1200, 1500, 1000);
     assert!(result.is_err());
-    // Check error pattern
+    // Check error pattern - should be InvalidBinState since q > t
     let err = result.unwrap_err();
-    assert!(err.to_string().contains("Cannot sell more than supply"));
+    assert!(err.to_string().contains("Invalid bin state"));
+    
+    // Test case where x == t and q == t (should succeed)
+    let result2 = RangeBetMath::calculate_bin_sell_cost(1000, 1000, 1000);
+    assert!(result2.is_ok());
+    assert_eq!(result2.unwrap(), 1000);
+    
+    // Test case where x == t but q < t (should fail with special error)
+    let result3 = RangeBetMath::calculate_bin_sell_cost(1000, 999, 1000);
+    assert!(result3.is_err());
+    // This should fail because x == t but q != t
+    let err3 = result3.unwrap_err();
+    assert!(err3.to_string().contains("Can only sell entire supply if bin contains all tokens"));
 }
 
 #[test]

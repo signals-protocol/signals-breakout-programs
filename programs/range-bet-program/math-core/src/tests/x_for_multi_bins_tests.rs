@@ -435,4 +435,163 @@ fn test_calculate_x_for_multi_bins_stress() {
     // All tests should succeed
     assert_eq!(success_count, total_count, 
               "Failed tests: {}/{}", total_count - success_count, total_count);
+}
+
+#[test]
+fn test_calculate_x_for_multi_bins_abnormally_large_budget() {
+    println!("\n---- Abnormally Large Budget Test ----");
+    
+    // Test scenarios where budget is much larger than reasonable
+    let test_cases = [
+        // (budget, bins, t, description)
+        (10_000_000_000u64, vec![50], 100, "Budget 100x larger than total supply"),
+        (1_000_000_000u64, vec![10, 20, 30], 100, "Multiple bins with huge budget"),
+        (u64::MAX / 1000, vec![500], 1000, "Near-maximum budget"),
+        (100_000_000u64, vec![1], 10, "Extremely small bin with huge budget"),
+        (50_000_000_000u64, vec![999], 1000, "Almost full bin with huge budget"),
+    ];
+    
+    for (budget, bins, t, description) in test_cases {
+        println!("\nTest case: {}", description);
+        println!("Budget: {}, Bins: {:?}, Total supply: {}", budget, bins, t);
+        
+        let result = RangeBetMath::calculate_x_for_multi_bins(budget, &bins, t);
+        
+        match result {
+            Ok(x) => {
+                println!("Calculated X per bin: {}", x);
+                
+                // Calculate actual cost
+                let actual_cost = RangeBetMath::calculate_multi_bins_buy_cost(x, &bins, t).unwrap();
+                println!("Actual cost: {}", actual_cost);
+                
+                // Calculate total shares purchased
+                let total_shares = x * bins.len() as u64;
+                println!("Total shares purchased: {}", total_shares);
+                
+                // Calculate average price per share
+                if total_shares > 0 {
+                    let avg_price_per_share = actual_cost as f64 / total_shares as f64;
+                    println!("Average price per share: {:.6}", avg_price_per_share);
+                    
+                    // Critical test: Average price per share should never exceed 1.0
+                    assert!(avg_price_per_share <= 1.0, 
+                           "Average price per share ({:.6}) exceeds 1.0! This violates the mathematical constraint.", 
+                           avg_price_per_share);
+                    
+                    // Additional check: If we try to buy x+1, it should either fail or cost more than budget
+                    if x < u64::MAX {
+                        match RangeBetMath::calculate_multi_bins_buy_cost(x + 1, &bins, t) {
+                            Ok(next_cost) => {
+                                if next_cost <= budget {
+                                    // This should not happen if our algorithm is optimal
+                                    println!("WARNING: Could buy more shares (x+1={}) for cost {} <= budget {}", 
+                                            x + 1, next_cost, budget);
+                                }
+                            },
+                            Err(_) => {
+                                println!("Buying x+1 would cause overflow (expected for large values)");
+                            }
+                        }
+                    }
+                } else {
+                    println!("No shares purchased (x=0)");
+                }
+                
+                // Ensure actual cost doesn't exceed budget
+                assert!(actual_cost <= budget, 
+                       "Actual cost ({}) exceeds budget ({})", actual_cost, budget);
+                
+                println!("✓ Test passed: Average price per share <= 1.0");
+            },
+            Err(e) => {
+                println!("Error occurred: {:?}", e);
+                // For extremely large budgets, overflow errors are acceptable
+                println!("✓ Test passed: Function handled extreme case gracefully");
+            }
+        }
+    }
+    
+    println!("\n---- Additional Edge Cases ----");
+    
+    // Test with various bin configurations and extreme budgets
+    let extreme_cases = [
+        (u64::MAX / 2, vec![1, 1, 1], 10),
+        (1_000_000_000_000u64, vec![100, 200, 300, 400, 500], 1000),
+        (u64::MAX / 100, vec![u64::MAX / 2], u64::MAX / 2),
+    ];
+    
+    for (budget, bins, t) in extreme_cases {
+        println!("\nExtreme case: budget={}, bins={:?}, t={}", budget, bins, t);
+        
+        match RangeBetMath::calculate_x_for_multi_bins(budget, &bins, t) {
+            Ok(x) => {
+                if let Ok(actual_cost) = RangeBetMath::calculate_multi_bins_buy_cost(x, &bins, t) {
+                    let total_shares = x * bins.len() as u64;
+                    if total_shares > 0 {
+                        let avg_price = actual_cost as f64 / total_shares as f64;
+                        assert!(avg_price <= 1.0, 
+                               "Average price ({:.6}) > 1.0 in extreme case", avg_price);
+                        println!("✓ Average price: {:.6} <= 1.0", avg_price);
+                    }
+                }
+            },
+            Err(_) => {
+                println!("✓ Handled extreme case with error (acceptable)");
+            }
+        }
+    }
+    
+    println!("\n---- Ultra Extreme Cases (T very small, Budget very large) ----");
+    
+    // Test the specific case mentioned: T=100, budget=10000000000
+    let ultra_extreme_cases = [
+        (10_000_000_000u64, vec![50], 100, "T=100, Budget=10B (100x supply)"),
+        (10_000_000_000u64, vec![1], 100, "T=100, Budget=10B, tiny bin"),
+        (10_000_000_000u64, vec![99], 100, "T=100, Budget=10B, almost full bin"),
+        (100_000_000_000u64, vec![50], 100, "T=100, Budget=100B (1000x supply)"),
+        (1_000_000_000_000u64, vec![10], 100, "T=100, Budget=1T (10000x supply)"),
+        (u64::MAX / 1000, vec![1], 2, "T=2, Budget=MAX/1000, minimal supply"),
+        (u64::MAX / 100, vec![1], 3, "T=3, Budget=MAX/100, minimal supply"),
+    ];
+    
+    for (budget, bins, t, description) in ultra_extreme_cases {
+        println!("\nUltra extreme: {}", description);
+        println!("Budget: {}, Bins: {:?}, T: {}", budget, bins, t);
+        
+        match RangeBetMath::calculate_x_for_multi_bins(budget, &bins, t) {
+            Ok(x) => {
+                match RangeBetMath::calculate_multi_bins_buy_cost(x, &bins, t) {
+                    Ok(actual_cost) => {
+                        let total_shares = x * bins.len() as u64;
+                        if total_shares > 0 {
+                            let avg_price = actual_cost as f64 / total_shares as f64;
+                            println!("X per bin: {}, Total shares: {}, Actual cost: {}", 
+                                    x, total_shares, actual_cost);
+                            println!("Average price per share: {:.10}", avg_price);
+                            
+                            // This is the critical test - price should NEVER exceed 1.0
+                            assert!(avg_price <= 1.0, 
+                                   "CRITICAL FAILURE: Average price ({:.10}) > 1.0! This violates mathematical constraints.", 
+                                   avg_price);
+                            
+                            // Additional verification: cost should not exceed budget
+                            assert!(actual_cost <= budget, 
+                                   "Cost ({}) exceeds budget ({})", actual_cost, budget);
+                            
+                            println!("✓ PASSED: Average price {:.10} <= 1.0", avg_price);
+                        } else {
+                            println!("No shares purchased (x=0) - acceptable for extreme cases");
+                        }
+                    },
+                    Err(e) => {
+                        println!("Cost calculation failed: {:?} - acceptable for extreme values", e);
+                    }
+                }
+            },
+            Err(e) => {
+                println!("X calculation failed: {:?} - acceptable for extreme cases", e);
+            }
+        }
+    }
 } 
